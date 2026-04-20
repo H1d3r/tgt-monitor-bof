@@ -91,7 +91,7 @@ enum KERB_ETYPE {
 NTSTATUS GetLsaHandle(HANDLE* hLsa); 
 NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize); 
 NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTICKET_CACHE cache); 
-VOID PrintTicketInformation(PTICKET_ENTRY entry, PBYTE ticket, ULONG ticketSize);
+VOID PrintTicketInformation(KERB_TICKET_CACHE_INFO_EX cacheInfo, LUID luid);
 char* Base64Encode(PBYTE data, ULONG size);
 VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr); 
 

