@@ -8,7 +8,7 @@ SCRIPT_DIR = os.path.dirname(__file__)
 if os.path.exists(ASYNC_DLL): 
     
     cmd_tgtMonitor = (
-        conquest.createCommand(name="tgt-monitor", description="Monitor for new Kerberos TGTs and automatically extract them as they appear.", example="tgt-monitor --interval 5 --user DC01$",
+        conquest.createCommand(name="tgt-monitor", description="Monitor for new Kerberos TGTs and automatically extract them as they appear (async).", example="tgt-monitor --interval 5 --user DC01$",
                                message="Tasked agent to monitor for new Kerberos TGTs and extract them.", mitre=[])
                 .addFlagInt("--interval", "interval", "Polling interval in seconds (default: 60).", False, 60)
                 .addFlagString("--user", "user", "Target specific username only.")
