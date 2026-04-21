@@ -15,14 +15,14 @@ In Conquest, the `tgt-monitor` BOF is executed in the background via a self-cont
 
 
 >[!Warning]
-> This BOF needs to be run from a `NT AUTHORITY\SYSTEM` context. 
+> This BOF requires to be run from a `NT AUTHORITY\SYSTEM` context. 
 
 The following arguments need to be passed to the object file: 
 
 | Name | Type | Description | 
 | --- | --- | --- |
 | `interval` | `int` | Timeout between checks in seconds. | 
-| `targetUser` | `string` | Case-insensitive username of a specific target user. When this field is set, only TGTs for that user are retrieved. Otherwise, TGTs are collected for all users. Note that computer accounts need to end with a `$`. |
+| `targetUser` | `string` | Case-insensitive username of a specific target user. When this field is set, only TGTs for that user are retrieved. Otherwise, TGTs are collected for all users. Note that computer accounts need to end with `$`. |
 
 For ease-of-use, this repository features a [Conquest Module](./dist/tgt-monitor.py) that implements the following command.  
 
