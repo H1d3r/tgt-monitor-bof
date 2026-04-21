@@ -8,8 +8,18 @@
 #define MemAlloc(size) KERNEL32$HeapAlloc(KERNEL32$GetProcessHeap(), HEAP_ZERO_MEMORY, (size))
 #define MemFree(ptr)   KERNEL32$HeapFree(KERNEL32$GetProcessHeap(), 0, (ptr))
 
+typedef struct _TIME_FIELDS {
+    SHORT Year;
+    SHORT Month;
+    SHORT Day;
+    SHORT Hour;
+    SHORT Minute;
+    SHORT Second;
+    SHORT Milliseconds;
+    SHORT Weekday;
+} TIME_FIELDS, *PTIME_FIELDS; 
+
 // APIs
-// SECUR32
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaRegisterLogonProcess(PLSA_STRING, PHANDLE, PLSA_OPERATIONAL_MODE);
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaLookupAuthenticationPackage(HANDLE, PLSA_STRING, PULONG);
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaCallAuthenticationPackage(HANDLE, ULONG, PVOID, ULONG, PVOID*, PULONG, PNTSTATUS);
@@ -18,7 +28,6 @@ DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaEnumerateLogonSessions(PULONG, PLUID*
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaGetLogonSessionData(PLUID, PSECURITY_LOGON_SESSION_DATA*);
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaDeregisterLogonProcess(HANDLE);
 
-// KERNEL32
 DECLSPEC_IMPORT HANDLE   WINAPI KERNEL32$GetProcessHeap(VOID);
 DECLSPEC_IMPORT LPVOID   WINAPI KERNEL32$HeapAlloc(HANDLE, DWORD, SIZE_T);
 DECLSPEC_IMPORT BOOL     WINAPI KERNEL32$HeapFree(HANDLE, DWORD, LPVOID);
@@ -26,22 +35,35 @@ DECLSPEC_IMPORT int      WINAPI KERNEL32$WideCharToMultiByte(UINT, DWORD, LPCWCH
 DECLSPEC_IMPORT BOOL     WINAPI KERNEL32$FileTimeToSystemTime(const FILETIME*, LPSYSTEMTIME);
 DECLSPEC_IMPORT DWORD    WINAPI KERNEL32$WaitForSingleObjectEx(HANDLE, DWORD, BOOLEAN);
 DECLSPEC_IMPORT VOID     WINAPI KERNEL32$GetSystemTime(LPSYSTEMTIME);
+DECLSPEC_IMPORT VOID 	 NTAPI  NTDLL$RtlTimeToTimeFields(PLARGE_INTEGER Time, PTIME_FIELDS TimeFields);
 
+DECLSPEC_IMPORT int      WINAPI MSVCRT$strcmp(const char*, const char*);
+DECLSPEC_IMPORT int      WINAPI MSVCRT$strncmp(const char*, const char*, size_t);
+DECLSPEC_IMPORT int      WINAPI MSVCRT$wcsncmp(const WCHAR*, const WCHAR*, size_t);
+DECLSPEC_IMPORT size_t   WINAPI MSVCRT$wcslen(const WCHAR*);
+DECLSPEC_IMPORT void*    WINAPI MSVCRT$memcpy(void*, const void*, size_t);
+DECLSPEC_IMPORT int 	 WINAPI MSVCRT$_stricmp(const char*, const char*);
+DECLSPEC_IMPORT int      WINAPI MSVCRT$_snprintf(char*, size_t, const char*, ...);
 
 // Kerberos structs
 typedef struct {
-    LUID  luid;
-    WCHAR spn[256];
-    WCHAR clientName[256];
-    WCHAR clientRealm[256];
-    WCHAR serverRealm[256];
-    KERB_TICKET_CACHE_INFO_EX cacheInfo;
+    LUID luid;
+    char spn[256];
+    char clientName[256];
+    char clientRealm[256];
+    char serverRealm[256];
+    LARGE_INTEGER startTime;
+    LARGE_INTEGER endTime;
+    LARGE_INTEGER renewTime;
+    ULONG ticketFlags;
+    LONG encryptionType;
 } TICKET_ENTRY, *PTICKET_ENTRY;    
 
 typedef struct {
     PTICKET_ENTRY tickets;
     int           count;
-} TICKET_CACHE, *PTICKET_CACHE;    
+} TICKET_CACHE, *PTICKET_CACHE;
+
 
 enum TICKET_FLAGS {
 	reserved = 2147483648,
@@ -64,6 +86,11 @@ enum TICKET_FLAGS {
 	reserved1 = 0x00000001,
 	empty = 0x00000000,
 };
+
+typedef struct { 
+	ULONG mask; 
+	const char* name; 
+} FLAG_ENTRY;
 
 enum KERB_ETYPE {
 	des_cbc_crc = 1,
@@ -91,7 +118,7 @@ enum KERB_ETYPE {
 NTSTATUS GetLsaHandle(HANDLE* hLsa); 
 NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize); 
 NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTICKET_CACHE cache); 
-VOID PrintTicketInformation(KERB_TICKET_CACHE_INFO_EX cacheInfo, LUID luid);
+VOID PrintTicketInformation(PTICKET_ENTRY entry); 
 char* Base64Encode(PBYTE data, ULONG size);
 VOID RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr); 
 
@@ -103,4 +130,4 @@ int _memcmp(const void *ptr1, const void *ptr2, size_t n);
 unsigned int _wcslen(LPCWSTR str);
 void* memcpy(void *dst, const void *src, size_t n);
 void* memset(void *dst, int c, size_t n);
-SYSTEMTIME ConvertToSystemtime(LARGE_INTEGER li); 
+SYSTEMTIME ConvertToSystemtime(LARGE_INTEGER* li); 
