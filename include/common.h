@@ -116,12 +116,3 @@ enum KERB_ETYPE {
     subkey_keymaterial           = 65,
     old_exp                      = -135,
 };
-
-// Functions
-NTSTATUS GetLsaHandle(HANDLE* hLsa);
-NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize);
-NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTICKET_CACHE cache);
-VOID     PrintTime(LARGE_INTEGER* li);
-VOID     PrintTicketInformation(PTICKET_ENTRY entry);
-VOID     RefreshCache(HANDLE hLsa, ULONG authPackage, PTICKET_CACHE prev, PTICKET_CACHE curr);
-char*    EncodeTicket(PBYTE data, ULONG size);
