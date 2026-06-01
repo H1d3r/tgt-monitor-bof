@@ -1,4 +1,4 @@
-# Kerberos TGT Monitor BOF
+# Kerberos TGT Monitor
 
 Async Beacon Object File (BOF) that monitors for Kerberos logon events and wakes up the agent whenever a new Kerberos TGT is captured. Similar to Rubeus' `monitor` command, this BOF is running indefinitely and periodically checks the LSA ticket cache on the system. When a new TGT is detected, it prints the ticket metadata and outputs a base64-encoded kirbi blob that can be used for lateral movement via pass-the-ticket attacks.
 
@@ -11,11 +11,15 @@ In Conquest, the `tgt-monitor` BOF is executed in the background via a self-cont
 
 ![Workflow](./assets/workflow.png)
 
+1. The TGT Monitor BOF requires `NT AUTHORITY\SYSTEM` privileges.
+   1. First, it checks the current process token for SYSTEM access.
+   2. If the process token is not SYSTEM, the BOF scans all threads in the current process for an impersonation token with SYSTEM privileges and duplicates it. This allows use from a low-integrity agent process that has stolen a SYSTEM token (e.g. via `SeImpersonatePrivilege`). The BOF terminates if this also does not yield SYSTEM level access.
+2. LSA and Kerberos authentication package handles are retrieved.
+3. All active logon sessions are enumerated. For each session, the Kerberos ticket cache is queried and filtered for TGTs. If a `--user` argument was provided, only sessions matching that username are considered.
+4. The current ticket cache is diffed against the previous snapshot. New TGTs trigger metadata printing and base64-encoded kirbi output, followed by a `BeaconWakeup()` call to force the agent to check in and return the output.
+5. Steps 3 and 4 are repeated in a loop with until the BOF is cancelled via the stop event. The user defined interval sets the delay between polls.
+
 ## Usage
-
-
->[!Warning]
-> This BOF requires to be run from a `NT AUTHORITY\SYSTEM` context. 
 
 The following arguments need to be passed to the object file: 
 

