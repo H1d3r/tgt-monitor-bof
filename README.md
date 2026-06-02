@@ -26,7 +26,7 @@ The following arguments need to be passed to the object file:
 | Name | Type | Description | 
 | --- | --- | --- |
 | `interval` | `int` | Timeout between checks in seconds. | 
-| `targetUser` | `string` | Case-insensitive username of a specific target user. When this field is set, only TGTs for that user are retrieved. Otherwise, TGTs are collected for all users. Note that computer accounts need to end with `$`. |
+| `targetUsers` | `string` | Case-insensitive comma-separated list of target usernames. When this field is set, only TGTs for the specified users are retrieved. Otherwise, TGTs are collected for all users. Note that computer accounts need to end with `$`. |
 
 For ease-of-use, this repository features a [Conquest Module](./dist/tgt-monitor.py) that implements the following command.  
 
@@ -36,7 +36,7 @@ Example: tgt-monitor --interval 5 --user DC01$
 
 Optional arguments:
   --interval interval       INT        Polling interval in seconds (default: 60).
-  --user user               STRING     Target specific username only.
+  --user user               STRING     Comma-separated list of target usernames (default: all users).
 ```
 
 ![TGT Monitor](./assets/image.png)
@@ -46,11 +46,15 @@ The encoded ticket can be used directly with `Rubeus.exe ptt /ticket:<base64>` o
 
 ![Stealing tickets with TGT Monitor](./assets/image-2.png)
 
-## Compilation
+## Installation
 
 ```bash
+git clone https://github.com/jakobfriedl/tgt-monitor-bof
+cd tgt-monitor-bof
 make
 ```
+
+From there, use Conquest's Script Manager to load the dist/tgt-monitor.py module.
 
 ## Acknowledgements 
 
@@ -59,4 +63,3 @@ This implementation of this Beacon Object File is based on the following project
 - https://github.com/Ghostpack/Rubeus
 - https://github.com/RalfHacker/Kerbeus-BOF
 - https://github.com/wavvs/nanorobeus
-

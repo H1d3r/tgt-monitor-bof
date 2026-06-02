@@ -9,10 +9,10 @@ if not os.path.exists(ASYNC_DLL):
     raise FileNotFoundError(f"Async BOF DLL not found: {ASYNC_DLL}")
     
 cmd_tgtMonitor = (
-    conquest.createCommand(name="tgt-monitor", description="Monitor for new Kerberos TGTs and automatically extract them as they appear (async).", example="tgt-monitor --interval 5 --user DC01$",
+    conquest.createCommand(name="tgt-monitor", description="Monitor for new Kerberos TGTs and automatically extract them as they appear (async).", example="tgt-monitor --interval 5 --user DC01$,Administrator",
                             message="Tasked agent to monitor for new Kerberos TGTs and extract them.", mitre=["T1558"])
             .addFlagInt("--interval", "interval", "Polling interval in seconds (default: 60).", False, 60)
-            .addFlagString("--user", "user", "Target specific username only.")
+            .addFlagString("--user", "user", "Comma-separated list of target usernames (default: all users).")
             .setHandler(lambda agentId, cmdline, args: (
                 interval := conquest.get_int(args, 0),
                 user := conquest.get_string(args, 1),
