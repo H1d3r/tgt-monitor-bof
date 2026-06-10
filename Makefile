@@ -1,18 +1,27 @@
-PROJECT = tgt-monitor
-SRCS    := src/main.c
-CCX64   := x86_64-w64-mingw32-gcc
-CCX86   := i686-w64-mingw32-gcc
-CFLAGS  := -Wall -Werror -Os -s -Iinclude -D_NO_NTDLL_CRT_
+MONITOR = tgt-monitor
+RENEW   = tgt-renew
+
+CCX64  := x86_64-w64-mingw32-gcc
+CCX86  := i686-w64-mingw32-gcc
+CFLAGS := -Wall -Werror -Os -s -Iinclude -D_NO_NTDLL_CRT_
 
 .DEFAULT: all
-all: bof
-bof: $(PROJECT).x64.o $(PROJECT).x86.o
+all: monitor renew
 
-$(PROJECT).x64.o: $(SRCS)
-	$(CCX64) -c src/main.c -o dist/$(PROJECT).x64.o $(CFLAGS)
+monitor: dist/$(MONITOR).x64.o dist/$(MONITOR).x86.o
+renew:   dist/$(RENEW).x64.o   dist/$(RENEW).x86.o
 
-$(PROJECT).x86.o: $(SRCS)
-	$(CCX86) -c src/main.c -o dist/$(PROJECT).x86.o $(CFLAGS)
+dist/$(MONITOR).x64.o: src/monitor.c src/common.c
+	$(CCX64) -c src/monitor.c -o $@ $(CFLAGS)
+
+dist/$(MONITOR).x86.o: src/monitor.c src/common.c
+	$(CCX86) -c src/monitor.c -o $@ $(CFLAGS)
+
+dist/$(RENEW).x64.o: src/renew.c src/common.c
+	$(CCX64) -c src/renew.c -o $@ $(CFLAGS)
+
+dist/$(RENEW).x86.o: src/renew.c src/common.c
+	$(CCX86) -c src/renew.c -o $@ $(CFLAGS)
 
 clean:
-	rm -f dist/$(PROJECT).x64.o dist/$(PROJECT).x86.o
+	rm -f dist/*.o

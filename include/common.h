@@ -73,6 +73,7 @@ DECLSPEC_IMPORT PVOID    WINAPI ADVAPI32$FreeSid(PSID);
 // NTDLL
 DECLSPEC_IMPORT VOID     NTAPI  NTDLL$RtlTimeToTimeFields(PLARGE_INTEGER, PTIME_FIELDS);
 DECLSPEC_IMPORT VOID     NTAPI  NTDLL$RtlSystemTimeToLocalTime(PLARGE_INTEGER, PLARGE_INTEGER);
+DECLSPEC_IMPORT NTSTATUS NTAPI  NTDLL$NtQuerySystemTime(PLARGE_INTEGER);
 
 // SECUR32
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaRegisterLogonProcess(PLSA_STRING, PHANDLE, PLSA_OPERATIONAL_MODE);
@@ -83,7 +84,18 @@ DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaEnumerateLogonSessions(PULONG, PLUID*
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaGetLogonSessionData(PLUID, PSECURITY_LOGON_SESSION_DATA*);
 DECLSPEC_IMPORT NTSTATUS WINAPI SECUR32$LsaDeregisterLogonProcess(HANDLE);
 
-// MSVCRT 
+// common.c
+BOOL     IsSystem(VOID);
+HANDLE   StealSystemToken(VOID);
+NTSTATUS GetLsaHandle(HANDLE* hLsa);
+BOOL     IsTargetUser(const char* targetUsers, const char* username);
+NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize);
+NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache);
+VOID     PrintTime(LARGE_INTEGER* li);
+VOID     PrintTicketInformation(PTICKET_ENTRY entry, const char* label);
+VOID     PrintTicket(PBYTE ticket, ULONG ticketSize);
+
+// MSVCRT
 DECLSPEC_IMPORT int      WINAPI MSVCRT$strcmp(const char*, const char*);
 DECLSPEC_IMPORT int      WINAPI MSVCRT$wcsncmp(const WCHAR*, const WCHAR*, size_t);
 DECLSPEC_IMPORT size_t   WINAPI MSVCRT$wcslen(const WCHAR*);
