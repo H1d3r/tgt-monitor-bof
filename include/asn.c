@@ -700,62 +700,62 @@ BOOL MakeString(int type, char* str, AsnElt* a) {
     unsigned char* buf = NULL;
     int len = 0;
     if (type == ASN_NumericString || type == ASN_PrintableString || type == ASN_UTCTime || type == ASN_GeneralizedTime || type == ASN_TeletexString || type == ASN_IA5String || type == ASN_GeneralString) {
-        if (EncodeMono(wstr, &len, &buf)) return FALSE;
+        if (!EncodeMono(wstr, &len, &buf)) return FALSE;
     }
     if (type == ASN_UTF8String) {
-        if (EncodeUTF8(wstr, &len, &buf)) return FALSE;
+        if (!EncodeUTF8(wstr, &len, &buf)) return FALSE;
     }
     if (type == ASN_BMPString) {
-        if (EncodeUTF16(wstr, &len, &buf)) return FALSE;
+        if (!EncodeUTF16(wstr, &len, &buf)) return FALSE;
     }
     if (type == ASN_UniversalString) {
-        if (EncodeUTF32(wstr, &len, &buf)) return FALSE;
+        if (!EncodeUTF32(wstr, &len, &buf)) return FALSE;
     }
     return MakePrimitiveInner(ASN_UNIVERSAL, type, buf, 0, len, a);
 }
 
 BOOL PackIntegerLong(int tagValue, int var, AsnElt* varSeqContext) {
     AsnElt varAsn = { 0 }, varSeq = { 0 };
-    if (MakeIntegerLong(var, &varAsn)
-         || Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
-         || MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
+    if (!MakeIntegerLong(var, &varAsn)
+         || !Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
+         || !MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
         return FALSE;
     return TRUE;
 }
 
 BOOL PackString(int tagValue, int type, char* var, AsnElt* varSeqContext) {
     AsnElt varAsn = { 0 }, varSeq = { 0 };
-    if (MakeString(type, var, &varAsn)
-         || Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
-         || MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
+    if (!MakeString(type, var, &varAsn)
+         || !Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
+         || !MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
         return FALSE;
     return TRUE;
 }
 
 BOOL PackStringExt(int tagValue, int type, int imp_type, char* var, AsnElt* varSeqContext) {
     AsnElt varAsn = { 0 }, var2Asn = { 0 }, varSeq = { 0 };
-    if (MakeString(type, var, &varAsn)
-         || MakeImplicit(ASN_UNIVERSAL, imp_type, &varAsn, &var2Asn)
-         || Make3(ASN_SEQUENCE, &var2Asn, 1, &varSeq)
-         || MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
+    if (!MakeString(type, var, &varAsn)
+         || !MakeImplicit(ASN_UNIVERSAL, imp_type, &varAsn, &var2Asn)
+         || !Make3(ASN_SEQUENCE, &var2Asn, 1, &varSeq)
+         || !MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
         return FALSE;
     return TRUE;
 }
 
 BOOL PackBitString(int tagValue, unsigned char* var, int varLen, AsnElt* varSeqContext) {
     AsnElt varAsn = { 0 }, varSeq = { 0 };
-    if (MakeBitString(var, 0, varLen, &varAsn)
-         || Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
-         || MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
+    if (!MakeBitString(var, 0, varLen, &varAsn)
+         || !Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
+         || !MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
         return FALSE;
     return TRUE;
 }
 
 BOOL PackBlock(int tagValue, unsigned char* var, int varLen, AsnElt* varSeqContext) {
     AsnElt varAsn = { 0 }, varSeq = { 0 };
-    if (MakeBlob(var, 0, varLen, &varAsn)
-         || Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
-         || MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
+    if (!MakeBlob(var, 0, varLen, &varAsn)
+         || !Make3(ASN_SEQUENCE, &varAsn, 1, &varSeq)
+         || !MakeImplicit(ASN_CONTEXT, tagValue, &varSeq, varSeqContext))
         return FALSE;
     return TRUE;
 }
@@ -810,7 +810,7 @@ BOOL AsnGetInteger(AsnElt* a, long* ret) {
         return FALSE;
 
     int v = 0;
-    if (ValueByte(a, 0, &v)) return FALSE;
+    if (!ValueByte(a, 0, &v)) return FALSE;
 
     long long x;
     if ((v & 0x80) != 0) {
@@ -821,7 +821,7 @@ BOOL AsnGetInteger(AsnElt* a, long* ret) {
             if (x < l)
                 return FALSE;
             int ll = 0;
-            if (ValueByte(a, k, &ll))
+            if (!ValueByte(a, k, &ll))
                 return FALSE;
             x = (x << 8) + (long)ll;
         }
@@ -834,7 +834,7 @@ BOOL AsnGetInteger(AsnElt* a, long* ret) {
             if (x >= l)
                 return FALSE;
             int ll = 0;
-            if (ValueByte(a, k, &ll))
+            if (!ValueByte(a, k, &ll))
                 return FALSE;
             x = (x << 8) + (long)ll;
         }
@@ -852,7 +852,7 @@ BOOL AsnGetOctetString3(AsnElt* a, unsigned char* dst, int off, int* ret) {
             if (CheckTag(&(a->sub[i]), ASN_UNIVERSAL, ASN_OCTET_STRING))
                 return FALSE;
             int ii = 0;
-            if (AsnGetOctetString3(&(a->sub[i]), dst, off, &ii))
+            if (!AsnGetOctetString3(&(a->sub[i]), dst, off, &ii))
                 return FALSE;
             off += ii;
         }
@@ -870,13 +870,13 @@ BOOL AsnGetOctetString3(AsnElt* a, unsigned char* dst, int off, int* ret) {
 }
 
 BOOL AsnGetOctetString(AsnElt* a, unsigned char** ret, int* len) {
-    if (AsnGetOctetString3(a, NULL, 0, len)) return FALSE;
+    if (!AsnGetOctetString3(a, NULL, 0, len)) return FALSE;
     *ret = MemAlloc(*len);
     if (!*ret) {
         BeaconPrintf(CALLBACK_ERROR, "[-] Failed alloc memory");
         return FALSE;
     }
-    if (AsnGetOctetString3(a, *ret, 0, len))
+    if (!AsnGetOctetString3(a, *ret, 0, len))
         return FALSE;
     return TRUE;
 }
@@ -884,7 +884,7 @@ BOOL AsnGetOctetString(AsnElt* a, unsigned char** ret, int* len) {
 BOOL AsnGetString(AsnElt* a, unsigned char** ret) {
     int len = 0;
     char* r = 0;
-    if (AsnGetOctetString(a, (unsigned char**)&r, &len)) return FALSE;
+    if (!AsnGetOctetString(a, (unsigned char**)&r, &len)) return FALSE;
     if (!MemCopy(ret, (unsigned char*)r, len + 1))
         return FALSE;
     (*ret)[len] = 0;
@@ -892,17 +892,17 @@ BOOL AsnGetString(AsnElt* a, unsigned char** ret) {
 }
 
 BOOL AsnGetPrincipalName(AsnElt* a, PrincipalName* pname) {
-    if (AsnGetInteger(&(a->sub[0].sub[0]), &(pname->name_type))) return FALSE;
+    if (!AsnGetInteger(&(a->sub[0].sub[0]), &(pname->name_type))) return FALSE;
     pname->name_count = a->sub[1].sub[0].subCount;
     pname->name_string = MemAlloc(sizeof(void*) * pname->name_count);
     for (unsigned int i = 0; i < pname->name_count; i++) {
         unsigned char* s = 0;
         int len = ValueLength(&(a->sub[1].sub[0].sub[i]));
-        if (AsnGetString(&(a->sub[1].sub[0].sub[i]), &s))
+        if (!AsnGetString(&(a->sub[1].sub[0].sub[i]), &s))
             return FALSE;
         wchar_t* ws = 0;
         int ws_length = 0;
-        if (DecodeUTF8(s, 0, len, (unsigned char**)&ws, &ws_length)) return FALSE;
+        if (!DecodeUTF8(s, 0, len, (unsigned char**)&ws, &ws_length)) return FALSE;
         pname->name_string[i] = MemAlloc(ws_length);
         KERNEL32$WideCharToMultiByte(CP_ACP, 0, ws, ws_length, pname->name_string[i], ws_length, NULL, 0);
     }
@@ -914,15 +914,15 @@ BOOL AsnGetEncryptedData(AsnElt* a, EncryptedData* encdata) {
     for (int i = 0; i < a->subCount; i++) {
         switch (a->sub[i].tagValue) {
             case 0:
-                if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
+                if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
                 encdata->etype = (int)tmpLong;
                 break;
             case 1:
-                if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
+                if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
                 encdata->kvno = (unsigned int)(tmpLong & 0x00000000ffffffff);
                 break;
             case 2:
-                if (AsnGetOctetString(&(a->sub[i].sub[0]), &(encdata->cipher), (int*)&(encdata->cipher_size))) return FALSE;
+                if (!AsnGetOctetString(&(a->sub[i].sub[0]), &(encdata->cipher), (int*)&(encdata->cipher_size))) return FALSE;
                 break;
             default:
                 break;
@@ -936,17 +936,17 @@ BOOL AsnGetTicket(AsnElt* a, Ticket* ticket) {
     for (int i = 0; i < a->subCount; i++) {
         switch (a->sub[i].tagValue) {
             case 0:
-                if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
+                if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
                 ticket->tkt_vno = (int)tmpLong;
                 break;
             case 1:
-                if (AsnGetString(&(a->sub[i].sub[0]), (unsigned char**)&(ticket->realm))) return FALSE;
+                if (!AsnGetString(&(a->sub[i].sub[0]), (unsigned char**)&(ticket->realm))) return FALSE;
                 break;
             case 2:
-                if (AsnGetPrincipalName(&(a->sub[i].sub[0]), &(ticket->sname))) return FALSE;
+                if (!AsnGetPrincipalName(&(a->sub[i].sub[0]), &(ticket->sname))) return FALSE;
                 break;
             case 3:
-                if (AsnGetEncryptedData(&(a->sub[i].sub[0]), &(ticket->enc_part))) return FALSE;
+                if (!AsnGetEncryptedData(&(a->sub[i].sub[0]), &(ticket->enc_part))) return FALSE;
                 break;
             default:
                 break;
@@ -959,7 +959,7 @@ BOOL AsnGetErrorCode(AsnElt* a, unsigned int* error) {
     long tmpLong = 0;
     for (int i = 0; i < a->subCount; i++) {
         if (a->sub[i].tagValue == 6) {
-            if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong))
+            if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong))
                 return FALSE;
             *error = (unsigned int)tmpLong;
             break;
@@ -974,14 +974,14 @@ BOOL AsnGetEncryptionKey(AsnElt* a, EncryptionKey* enc_key) {
     for (int i = 0; i < s.subCount; i++) {
         switch (s.sub[i].tagValue) {
             case 0:
-                if (AsnGetInteger(&(s.sub[i].sub[0]), &tmpLong)) return FALSE;
+                if (!AsnGetInteger(&(s.sub[i].sub[0]), &tmpLong)) return FALSE;
                 enc_key->key_type = (int)tmpLong;
                 break;
             case 1:
-                if (AsnGetOctetString(&(s.sub[i].sub[0]), &(enc_key->key_value), (int*)&(enc_key->key_size))) return FALSE;
+                if (!AsnGetOctetString(&(s.sub[i].sub[0]), &(enc_key->key_value), (int*)&(enc_key->key_size))) return FALSE;
                 break;
             case 2:
-                if (AsnGetOctetString(&(s.sub[i].sub[0]), &(enc_key->key_value), (int*)&(enc_key->key_size))) return FALSE;
+                if (!AsnGetOctetString(&(s.sub[i].sub[0]), &(enc_key->key_value), (int*)&(enc_key->key_size))) return FALSE;
                 break;
             default:
                 break;
@@ -996,7 +996,7 @@ BOOL NodeAsnGetSting(AsnElt* a, int type, int* len, unsigned char** ret) {
         return FALSE;
     }
     if (type == ASN_NumericString || type == ASN_PrintableString || type == ASN_IA5String || type == ASN_TeletexString || type == ASN_UTCTime || type == ASN_GeneralizedTime) {
-        if (DecodeMono(a->objBuf, a->valOff, a->valLen, type, ret, len)) return FALSE;
+        if (!DecodeMono(a->objBuf, a->valOff, a->valLen, type, ret, len)) return FALSE;
     }
     else {
         BeaconPrintf(CALLBACK_ERROR, "unsupported string type: %d\n", type);
@@ -1020,7 +1020,7 @@ BOOL AsnGetTime2(AsnElt* a, int type, DateTime* dt) {
 
     int sLen = 0;
     unsigned char* s = 0;
-    if (NodeAsnGetSting(a, type, &sLen, &s)) return FALSE;
+    if (!NodeAsnGetSting(a, type, &sLen, &s)) return FALSE;
 
     for (int i = 0; i < sLen; i++) {
         if (s[i] >= '0' && s[i] <= '9')
@@ -1131,11 +1131,11 @@ BOOL AsnGetLastReq(AsnElt* a, LastReq* last_req) {
     for (int i = 0; i < s.subCount; i++) {
         switch (s.sub[i].tagValue) {
             case 0:
-                if (AsnGetInteger(&(s.sub[i].sub[0]), &tmpLong)) return FALSE;
+                if (!AsnGetInteger(&(s.sub[i].sub[0]), &tmpLong)) return FALSE;
                 last_req->lr_type = (int)tmpLong;
                 break;
             case 1:
-                if (AsnGetTime(&(s.sub[i].sub[0]), &(last_req->lr_value))) return FALSE;
+                if (!AsnGetTime(&(s.sub[i].sub[0]), &(last_req->lr_value))) return FALSE;
                 break;
             default:
                 break;
@@ -1149,11 +1149,11 @@ BOOL AsnGetEncryptedPAData(AsnElt* body, EncryptedPAData* data) {
         long ll = 0;
         switch (body->sub[0].sub[i].tagValue) {
             case 1:
-                if (AsnGetInteger(&(body->sub[0].sub[i].sub[0]), &ll)) return FALSE;
+                if (!AsnGetInteger(&(body->sub[0].sub[i].sub[0]), &ll)) return FALSE;
                 data->keytype = (int)ll;
                 break;
             case 2:
-                if (AsnGetOctetString(&(body->sub[0].sub[i].sub[0]), &(data->keyvalue), &(data->keysize))) return FALSE;
+                if (!AsnGetOctetString(&(body->sub[0].sub[i].sub[0]), &(data->keyvalue), &(data->keysize))) return FALSE;
                 break;
             default:
                 break;
@@ -1161,8 +1161,8 @@ BOOL AsnGetEncryptedPAData(AsnElt* body, EncryptedPAData* data) {
     }
     if (data->keytype == 162) {
         AsnElt ae = { 0 };
-        if (BytesToAsnDecode(data->keyvalue, data->keysize, &ae)) return FALSE;
-        if (AsnGetEncryptionKey(&ae, &(data->encryptionKey))) return FALSE;
+        if (!BytesToAsnDecode(data->keyvalue, data->keysize, &ae)) return FALSE;
+        if (!AsnGetEncryptionKey(&ae, &(data->encryptionKey))) return FALSE;
     }
     return TRUE;
 }
@@ -1171,44 +1171,44 @@ BOOL AsnGetEncKDCRepPart(AsnElt* a, EncKDCRepPart* rep_part) {
     for (int i = 0; i < a->subCount; i++) {
         int tagValue = a->sub[i].tagValue;
         if (tagValue == 0) {
-            if (AsnGetEncryptionKey(&(a->sub[i]), &(rep_part->key))) return FALSE;
+            if (!AsnGetEncryptionKey(&(a->sub[i]), &(rep_part->key))) return FALSE;
         }
         if (tagValue == 1) {
-            if (AsnGetLastReq(&(a->sub[i].sub[0]), &(rep_part->lastReq))) return FALSE;
+            if (!AsnGetLastReq(&(a->sub[i].sub[0]), &(rep_part->lastReq))) return FALSE;
         }
         if (tagValue == 2) {
             long tmpLong = 0;
-            if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
+            if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
             rep_part->nonce = (unsigned int)tmpLong;
         }
         if (tagValue == 3) {
-            if (AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->key_expiration))) return FALSE;
+            if (!AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->key_expiration))) return FALSE;
         }
         if (tagValue == 4) {
             long tmpLong = 0;
-            if (AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
+            if (!AsnGetInteger(&(a->sub[i].sub[0]), &tmpLong)) return FALSE;
             rep_part->flags = (unsigned int)tmpLong;
         }
         if (tagValue == 5) {
-            if (AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->authtime))) return FALSE;
+            if (!AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->authtime))) return FALSE;
         }
         if (tagValue == 6) {
-            if (AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->starttime))) return FALSE;
+            if (!AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->starttime))) return FALSE;
         }
         if (tagValue == 7) {
-            if (AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->endtime))) return FALSE;
+            if (!AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->endtime))) return FALSE;
         }
         if (tagValue == 8) {
-            if (AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->renew_till))) return FALSE;
+            if (!AsnGetTime(&(a->sub[i].sub[0]), &(rep_part->renew_till))) return FALSE;
         }
         if (tagValue == 9) {
-            if (AsnGetString(&(a->sub[i].sub[0]), (unsigned char**)&(rep_part->realm))) return FALSE;
+            if (!AsnGetString(&(a->sub[i].sub[0]), (unsigned char**)&(rep_part->realm))) return FALSE;
         }
         if (tagValue == 10) {
-            if (AsnGetPrincipalName(&(a->sub[i].sub[0]), &(rep_part->sname))) return FALSE;
+            if (!AsnGetPrincipalName(&(a->sub[i].sub[0]), &(rep_part->sname))) return FALSE;
         }
         if (tagValue == 12) {
-            if (AsnGetEncryptedPAData(&(a->sub[i].sub[0]), &(rep_part->encryptedPaData))) return FALSE;
+            if (!AsnGetEncryptedPAData(&(a->sub[i].sub[0]), &(rep_part->encryptedPaData))) return FALSE;
         }
     }
     return TRUE;
@@ -1218,36 +1218,36 @@ BOOL AsnGetKrbCredInfo(AsnElt* body, KrbCredInfo* info) {
     for (int i = 0; i < body->subCount; i++) {
         int tagValue = body->sub[i].tagValue;
         if (tagValue == 0) {
-            if (AsnGetEncryptionKey(&(body->sub[i]), &(info->key))) return FALSE;
+            if (!AsnGetEncryptionKey(&(body->sub[i]), &(info->key))) return FALSE;
         }
         if (tagValue == 1) {
-            if (AsnGetString(&(body->sub[i].sub[0]), (unsigned char**)&(info->prealm))) return FALSE;
+            if (!AsnGetString(&(body->sub[i].sub[0]), (unsigned char**)&(info->prealm))) return FALSE;
         }
         if (tagValue == 2) {
-            if (AsnGetPrincipalName(&(body->sub[i].sub[0]), &(info->pname))) return FALSE;
+            if (!AsnGetPrincipalName(&(body->sub[i].sub[0]), &(info->pname))) return FALSE;
         }
         if (tagValue == 3) {
             long tmpLong = 0;
-            if (AsnGetInteger(&(body->sub[i].sub[0]), &tmpLong)) return FALSE;
+            if (!AsnGetInteger(&(body->sub[i].sub[0]), &tmpLong)) return FALSE;
             info->flags = (unsigned int)tmpLong;
         }
         if (tagValue == 4) {
-            if (AsnGetTime(&(body->sub[i].sub[0]), &(info->authtime))) return FALSE;
+            if (!AsnGetTime(&(body->sub[i].sub[0]), &(info->authtime))) return FALSE;
         }
         if (tagValue == 5) {
-            if (AsnGetTime(&(body->sub[i].sub[0]), &(info->starttime))) return FALSE;
+            if (!AsnGetTime(&(body->sub[i].sub[0]), &(info->starttime))) return FALSE;
         }
         if (tagValue == 6) {
-            if (AsnGetTime(&(body->sub[i].sub[0]), &(info->endtime))) return FALSE;
+            if (!AsnGetTime(&(body->sub[i].sub[0]), &(info->endtime))) return FALSE;
         }
         if (tagValue == 7) {
-            if (AsnGetTime(&(body->sub[i].sub[0]), &(info->renew_till))) return FALSE;
+            if (!AsnGetTime(&(body->sub[i].sub[0]), &(info->renew_till))) return FALSE;
         }
         if (tagValue == 8) {
-            if (AsnGetString(&(body->sub[i].sub[0]), (unsigned char**)&(info->srealm))) return FALSE;
+            if (!AsnGetString(&(body->sub[i].sub[0]), (unsigned char**)&(info->srealm))) return FALSE;
         }
         if (tagValue == 9) {
-            if (AsnGetPrincipalName(&(body->sub[i].sub[0]), &(info->sname))) return FALSE;
+            if (!AsnGetPrincipalName(&(body->sub[i].sub[0]), &(info->sname))) return FALSE;
         }
     }
     return TRUE;
@@ -1256,13 +1256,13 @@ BOOL AsnGetKrbCredInfo(AsnElt* body, KrbCredInfo* info) {
 BOOL AsnGetEncKrbCredPart(AsnElt* body, EncKrbCredPart* cred_part) {
     int octetStringLength = 0;
     unsigned char* octetString = 0;
-    if (AsnGetOctetString(&(body->sub[1].sub[0]), &octetString, &octetStringLength)) return FALSE;
+    if (!AsnGetOctetString(&(body->sub[1].sub[0]), &octetString, &octetStringLength)) return FALSE;
 
     AsnElt body2 = { 0 };
-    if (BytesToAsnDecode3(octetString, octetStringLength, FALSE, &body2)) return FALSE;
+    if (!BytesToAsnDecode3(octetString, octetStringLength, FALSE, &body2)) return FALSE;
 
     KrbCredInfo info = { 0 };
-    if (AsnGetKrbCredInfo(&(body2.sub[0].sub[0].sub[0].sub[0]), &info)) return FALSE;
+    if (!AsnGetKrbCredInfo(&(body2.sub[0].sub[0].sub[0].sub[0]), &info)) return FALSE;
 
     cred_part->ticket_count = 1;
     cred_part->ticket_info = MemAlloc(cred_part->ticket_count * sizeof(KrbCredInfo));
@@ -1275,10 +1275,10 @@ BOOL AsnGetKrbCred(AsnElt* body, KRB_CRED* cred) {
     for (int i = 0; i < body->subCount; i++) {
         switch (body->sub[i].tagValue) {
             case 0:
-                if (AsnGetInteger(&(body->sub[i].sub[0]), &(cred->pvno))) return FALSE;
+                if (!AsnGetInteger(&(body->sub[i].sub[0]), &(cred->pvno))) return FALSE;
                 break;
             case 1:
-                if (AsnGetInteger(&(body->sub[i].sub[0]), &(cred->msg_type))) return FALSE;
+                if (!AsnGetInteger(&(body->sub[i].sub[0]), &(cred->msg_type))) return FALSE;
                 break;
             case 2:
                 cred->ticket_count = body->sub[i].sub[0].sub[0].subCount;
@@ -1286,13 +1286,13 @@ BOOL AsnGetKrbCred(AsnElt* body, KRB_CRED* cred) {
                     cred->tickets = MemAlloc(sizeof(Ticket) * cred->ticket_count);
                     for (unsigned int j = 0; j < cred->ticket_count; j++) {
                         Ticket ticket = { 0 };
-                        if (AsnGetTicket(&(body->sub[i].sub[0].sub[0].sub[j]), &ticket)) return FALSE;
+                        if (!AsnGetTicket(&(body->sub[i].sub[0].sub[0].sub[j]), &ticket)) return FALSE;
                         cred->tickets[j] = ticket;
                     }
                 }
                 break;
             case 3:
-                if (AsnGetEncKrbCredPart(&(body->sub[i].sub[0]), &(cred->enc_part))) return FALSE;
+                if (!AsnGetEncKrbCredPart(&(body->sub[i].sub[0]), &(cred->enc_part))) return FALSE;
                 break;
             default:
                 break;
@@ -1324,18 +1324,18 @@ BOOL AsnGetPaData(AsnElt* body, PA_DATA* padata) {
             unsigned char* mas = MemAlloc(masLength);
             masLength = EncodeValue(&(body->sub[1].sub[0]), 0, masLength, mas, 0);
             AsnElt ae = { 0 };
-            if (BytesToAsnDecode(mas, masLength, &ae)) return FALSE;
+            if (!BytesToAsnDecode(mas, masLength, &ae)) return FALSE;
 
             ETYPE_INFO2_ENTRY* entry = (ETYPE_INFO2_ENTRY*)padata->value;
             long ll = 0;
             for (int i2 = 0; i2 < ae.sub[0].subCount; i2++) {
                 switch (ae.sub[0].sub[i2].tagValue) {
                     case 0:
-                        if (AsnGetInteger(&(ae.sub[0].sub[i2].sub[0]), &ll)) return FALSE;
+                        if (!AsnGetInteger(&(ae.sub[0].sub[i2].sub[0]), &ll)) return FALSE;
                         entry->etype = (int)ll;
                         break;
                     case 1:
-                        if (AsnGetString(&(ae.sub[0].sub[i2].sub[0]), (unsigned char**)&(entry->salt))) return FALSE;
+                        if (!AsnGetString(&(ae.sub[0].sub[i2].sub[0]), (unsigned char**)&(entry->salt))) return FALSE;
                         break;
                     default:
                         break;
@@ -1358,25 +1358,25 @@ BOOL AsnGetTGS_REP(AsnElt* asn_TGS_REP, TGS_REP* tgs_rep) {
     for (int i = 0; i < asn_TGS_REP->sub[0].subCount; i++) {
         int tagValue = kdc_rep[i].tagValue;
         if (tagValue == 0) {
-            if (AsnGetInteger(&(kdc_rep[i].sub[0]), &(tgs_rep->pvno))) return FALSE;
+            if (!AsnGetInteger(&(kdc_rep[i].sub[0]), &(tgs_rep->pvno))) return FALSE;
         }
         if (tagValue == 1) {
-            if (AsnGetInteger(&(kdc_rep[i].sub[0]), &(tgs_rep->msg_type))) return FALSE;
+            if (!AsnGetInteger(&(kdc_rep[i].sub[0]), &(tgs_rep->msg_type))) return FALSE;
         }
         if (tagValue == 2) {
-            if (AsnGetPaData(&(kdc_rep[i].sub[0]), &(tgs_rep->padata))) return FALSE;
+            if (!AsnGetPaData(&(kdc_rep[i].sub[0]), &(tgs_rep->padata))) return FALSE;
         }
         if (tagValue == 3) {
-            if (AsnGetString(&(kdc_rep[i].sub[0]), (unsigned char**)&(tgs_rep->crealm))) return FALSE;
+            if (!AsnGetString(&(kdc_rep[i].sub[0]), (unsigned char**)&(tgs_rep->crealm))) return FALSE;
         }
         if (tagValue == 4) {
-            if (AsnGetPrincipalName(&(kdc_rep[i].sub[0]), &(tgs_rep->cname))) return FALSE;
+            if (!AsnGetPrincipalName(&(kdc_rep[i].sub[0]), &(tgs_rep->cname))) return FALSE;
         }
         if (tagValue == 5) {
-            if (AsnGetTicket(&(kdc_rep[i].sub[0].sub[0]), &(tgs_rep->ticket))) return FALSE;
+            if (!AsnGetTicket(&(kdc_rep[i].sub[0].sub[0]), &(tgs_rep->ticket))) return FALSE;
         }
         if (tagValue == 6) {
-            if (AsnGetEncryptedData(&(kdc_rep[i].sub[0]), &(tgs_rep->enc_part))) return FALSE;
+            if (!AsnGetEncryptedData(&(kdc_rep[i].sub[0]), &(tgs_rep->enc_part))) return FALSE;
         }
     }
     return TRUE;
@@ -1392,14 +1392,14 @@ BOOL AsnEncTimeStampToPaDataEncode(EncryptionKey encKey, PA_DATA* pa_data) {
     MSVCRT$sprintf(datatime, "%04d%02d%02d%02d%02d%02dZ", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
 
     AsnElt patimestampSeqContext = { 0 };
-    if (PackString(0, ASN_GeneralizedTime, datatime, &patimestampSeqContext)) return FALSE;
+    if (!PackString(0, ASN_GeneralizedTime, datatime, &patimestampSeqContext)) return FALSE;
 
     AsnElt totalSeq = { 0 };
-    if (Make3(ASN_SEQUENCE, &patimestampSeqContext, 1, &totalSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &patimestampSeqContext, 1, &totalSeq)) return FALSE;
 
     int rawBytesSize = 0;
     unsigned char* rawBytes = 0;
-    if (AsnToBytesEncode(&totalSeq, &rawBytesSize, &rawBytes)) return FALSE;
+    if (!AsnToBytesEncode(&totalSeq, &rawBytesSize, &rawBytes)) return FALSE;
 
     unsigned char* encBytes;
     DWORD encSize = 0;
@@ -1421,37 +1421,37 @@ BOOL AsnEncTimeStampToPaDataEncode(EncryptionKey encKey, PA_DATA* pa_data) {
 
 BOOL AsnPrincipalNameEncode(PrincipalName* cname, AsnElt* RET) {
     AsnElt nameTypeSeqContext = { 0 };
-    if (PackIntegerLong(0, cname->name_type, &nameTypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, cname->name_type, &nameTypeSeqContext)) return FALSE;
 
     AsnElt* strings = MemAlloc(sizeof(AsnElt) * cname->name_count);
     for (unsigned int i = 0; i < cname->name_count; ++i) {
         AsnElt nameStringElt = { 0 }, nameStringEltContext = { 0 };
-        if (MakeString(ASN_UTF8String, cname->name_string[i], &nameStringElt)) return FALSE;
-        if (MakeImplicit(ASN_UNIVERSAL, ASN_GeneralString, &nameStringElt, &nameStringEltContext)) return FALSE;
+        if (!MakeString(ASN_UTF8String, cname->name_string[i], &nameStringElt)) return FALSE;
+        if (!MakeImplicit(ASN_UNIVERSAL, ASN_GeneralString, &nameStringElt, &nameStringEltContext)) return FALSE;
         strings[i] = nameStringEltContext;
     }
 
     AsnElt stringSeq = { 0 }, stringSeq2 = { 0 }, stringSeq2Context = { 0 };
-    if (Make3(ASN_SEQUENCE, strings, cname->name_count, &stringSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &stringSeq, 1, &stringSeq2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 1, &stringSeq2, &stringSeq2Context)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, strings, cname->name_count, &stringSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &stringSeq, 1, &stringSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 1, &stringSeq2, &stringSeq2Context)) return FALSE;
 
     AsnElt preseq[] = { nameTypeSeqContext, stringSeq2Context };
     AsnElt seq = { 0 };
-    if (Make3(ASN_SEQUENCE, preseq, 2, &seq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &seq, 1, RET)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, preseq, 2, &seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq, 1, RET)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnHostAddressEncode(HostAddress* addr, AsnElt* seq) {
     AsnElt addrTypeSeqContext = { 0 };
-    if (PackIntegerLong(0, addr->addr_type, &addrTypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, addr->addr_type, &addrTypeSeqContext)) return FALSE;
 
     AsnElt addrStringSeqContext = { 0 };
-    if (PackStringExt(1, ASN_TeletexString, ASN_OCTET_STRING, addr->addr_string, &addrStringSeqContext)) return FALSE;
+    if (!PackStringExt(1, ASN_TeletexString, ASN_OCTET_STRING, addr->addr_string, &addrStringSeqContext)) return FALSE;
 
     AsnElt seqTotal[] = { addrTypeSeqContext, addrStringSeqContext };
-    if (Make3(ASN_SEQUENCE, seqTotal, 2, seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, seqTotal, 2, seq)) return FALSE;
 
     return TRUE;
 }
@@ -1459,70 +1459,70 @@ BOOL AsnHostAddressEncode(HostAddress* addr, AsnElt* seq) {
 BOOL AsnKerbPaPacRequestEncode(KERB_PA_PAC_REQUEST* value, AsnElt* totalSeq) {
     AsnElt ret = { 0 };
     if (value->include_pac) {
-        if (MakeBlob((unsigned char[]){ 0x30, 0x05, 0xa0, 0x03, 0x01, 0x01, 0x01 }, 0, 7, &ret)) return FALSE;
+        if (!MakeBlob((unsigned char[]){ 0x30, 0x05, 0xa0, 0x03, 0x01, 0x01, 0x01 }, 0, 7, &ret)) return FALSE;
     }
     else {
-        if (MakeBlob((unsigned char[]){ 0x30, 0x05, 0xa0, 0x03, 0x01, 0x01, 0x00 }, 0, 7, &ret)) return FALSE;
+        if (!MakeBlob((unsigned char[]){ 0x30, 0x05, 0xa0, 0x03, 0x01, 0x01, 0x00 }, 0, 7, &ret)) return FALSE;
     }
-    if (Make3(ASN_SEQUENCE, &ret, 1, totalSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &ret, 1, totalSeq)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnEncryptedDataEncode(EncryptedData* value, AsnElt* totalSeq) {
     AsnElt etypeSeqContext = { 0 };
-    if (PackIntegerLong(0, (long)value->etype, &etypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, (long)value->etype, &etypeSeqContext)) return FALSE;
 
     AsnElt cipherSeqContext = { 0 };
-    if (PackBlock(2, value->cipher, value->cipher_size, &cipherSeqContext)) return FALSE;
+    if (!PackBlock(2, value->cipher, value->cipher_size, &cipherSeqContext)) return FALSE;
 
     if (value->kvno != 0) {
         AsnElt kvnoSeqContext = { 0 };
-        if (PackIntegerLong(1, (long)value->kvno, &kvnoSeqContext)) return FALSE;
+        if (!PackIntegerLong(1, (long)value->kvno, &kvnoSeqContext)) return FALSE;
         AsnElt allSeq[] = { etypeSeqContext, kvnoSeqContext, cipherSeqContext };
-        if (Make3(ASN_SEQUENCE, allSeq, 3, totalSeq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, allSeq, 3, totalSeq)) return FALSE;
     }
     else {
         AsnElt allSeq[] = { etypeSeqContext, cipherSeqContext };
-        if (Make3(ASN_SEQUENCE, allSeq, 2, totalSeq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, allSeq, 2, totalSeq)) return FALSE;
     }
     return TRUE;
 }
 
 BOOL AsnEncryptionKeyEncode(EncryptionKey* key, AsnElt* seq2) {
     AsnElt keyTypeSeqContext = { 0 };
-    if (PackIntegerLong(0, (long)key->key_type, &keyTypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, (long)key->key_type, &keyTypeSeqContext)) return FALSE;
 
     AsnElt blobSeqContext = { 0 };
-    if (PackBlock(1, key->key_value, key->key_size, &blobSeqContext)) return FALSE;
+    if (!PackBlock(1, key->key_value, key->key_size, &blobSeqContext)) return FALSE;
 
     AsnElt seqTotal[] = { keyTypeSeqContext, blobSeqContext };
     AsnElt seq = { 0 };
-    if (Make3(ASN_SEQUENCE, seqTotal, 2, &seq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &seq, 1, seq2)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, seqTotal, 2, &seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq, 1, seq2)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnTicketEncode(Ticket* ticket, AsnElt* totalSeq2Context) {
     AsnElt tkt_vnoSeqContext = { 0 };
-    if (PackIntegerLong(0, ticket->tkt_vno, &tkt_vnoSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, ticket->tkt_vno, &tkt_vnoSeqContext)) return FALSE;
 
     AsnElt realmAsnSeqContext = { 0 };
-    if (PackStringExt(1, ASN_IA5String, ASN_GeneralString, ticket->realm, &realmAsnSeqContext)) return FALSE;
+    if (!PackStringExt(1, ASN_IA5String, ASN_GeneralString, ticket->realm, &realmAsnSeqContext)) return FALSE;
 
     AsnElt snameAsn = { 0 }, snameAsnContext = { 0 };
-    if (AsnPrincipalNameEncode(&(ticket->sname), &snameAsn)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 2, &snameAsn, &snameAsnContext)) return FALSE;
+    if (!AsnPrincipalNameEncode(&(ticket->sname), &snameAsn)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 2, &snameAsn, &snameAsnContext)) return FALSE;
 
     AsnElt enc_partAsn = { 0 }, enc_partSeq = { 0 }, enc_partSeqContext = { 0 };
-    if (AsnEncryptedDataEncode(&(ticket->enc_part), &enc_partAsn)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &enc_partAsn, 1, &enc_partSeq)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 3, &enc_partSeq, &enc_partSeqContext)) return FALSE;
+    if (!AsnEncryptedDataEncode(&(ticket->enc_part), &enc_partAsn)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &enc_partAsn, 1, &enc_partSeq)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 3, &enc_partSeq, &enc_partSeqContext)) return FALSE;
 
     AsnElt seqTotal[] = { tkt_vnoSeqContext, realmAsnSeqContext, snameAsnContext, enc_partSeqContext };
     AsnElt totalSeq = { 0 }, totalSeq2 = { 0 };
-    if (Make3(ASN_SEQUENCE, seqTotal, 4, &totalSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &totalSeq, 1, &totalSeq2)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, 1, &totalSeq2, totalSeq2Context)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, seqTotal, 4, &totalSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &totalSeq, 1, &totalSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, 1, &totalSeq2, totalSeq2Context)) return FALSE;
 
     return TRUE;
 }
@@ -1540,30 +1540,30 @@ BOOL AsnKDCReqBodyEncode(KDCReqBody* req_body, AsnElt* RET) {
     unsigned char kdcOptionsBytes[sizeof(UINT32)];
     FlasToBytes(req_body->kdc_options, kdcOptionsBytes);
     AsnElt kdcOptionsSeqContext = { 0 };
-    if (PackBitString(0, kdcOptionsBytes, sizeof(UINT32), &kdcOptionsSeqContext)) return FALSE;
+    if (!PackBitString(0, kdcOptionsBytes, sizeof(UINT32), &kdcOptionsSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = kdcOptionsSeqContext;
 
     if (req_body->cname.name_count) {
         AsnElt cnameElt = { 0 }, cnameEltContext = { 0 };
-        if (AsnPrincipalNameEncode(&(req_body->cname), &cnameElt)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 1, &cnameElt, &cnameEltContext)) return FALSE;
+        if (!AsnPrincipalNameEncode(&(req_body->cname), &cnameElt)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 1, &cnameElt, &cnameEltContext)) return FALSE;
         allNodes[allNodesIndex++] = cnameEltContext;
     }
 
     AsnElt realmSeqContext = { 0 };
-    if (PackStringExt(2, ASN_IA5String, ASN_GeneralString, req_body->realm, &realmSeqContext)) return FALSE;
+    if (!PackStringExt(2, ASN_IA5String, ASN_GeneralString, req_body->realm, &realmSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = realmSeqContext;
 
     AsnElt snameElt = { 0 }, snameEltContext = { 0 };
-    if (AsnPrincipalNameEncode(&(req_body->sname), &snameElt)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 3, &snameElt, &snameEltContext)) return FALSE;
+    if (!AsnPrincipalNameEncode(&(req_body->sname), &snameElt)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 3, &snameElt, &snameEltContext)) return FALSE;
     allNodes[allNodesIndex++] = snameEltContext;
 
     char datatime[18];
     DateTime dt = GetLocalTimeAdd(req_body->till);
     MSVCRT$sprintf(datatime, "%04d%02d%02d%02d%02d%02dZ", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
     AsnElt tillSeqContext = { 0 };
-    if (PackString(5, ASN_GeneralizedTime, datatime, &tillSeqContext)) return FALSE;
+    if (!PackString(5, ASN_GeneralizedTime, datatime, &tillSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = tillSeqContext;
 
     if (req_body->rtime > 0) {
@@ -1571,72 +1571,72 @@ BOOL AsnKDCReqBodyEncode(KDCReqBody* req_body, AsnElt* RET) {
         dt = GetLocalTimeAdd(req_body->rtime);
         MSVCRT$sprintf(tilltime, "%04d%02d%02d%02d%02d%02dZ", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
         AsnElt rtimeSeqContext = { 0 };
-        if (PackString(6, ASN_GeneralizedTime, tilltime, &rtimeSeqContext)) return FALSE;
+        if (!PackString(6, ASN_GeneralizedTime, tilltime, &rtimeSeqContext)) return FALSE;
         allNodes[allNodesIndex++] = rtimeSeqContext;
     }
 
     AsnElt nonceSeqContext = { 0 };
-    if (PackIntegerLong(7, (LONG)req_body->nonce, &nonceSeqContext)) return FALSE;
+    if (!PackIntegerLong(7, (LONG)req_body->nonce, &nonceSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = nonceSeqContext;
 
     AsnElt* etypeList = MemAlloc(sizeof(AsnElt) * req_body->etypes_count);
     for (unsigned int i = 0; i < req_body->etypes_count; ++i) {
         AsnElt etypeAsn = { 0 };
-        if (MakeIntegerLong((LONG)req_body->etypes[i], &etypeAsn)) return FALSE;
+        if (!MakeIntegerLong((LONG)req_body->etypes[i], &etypeAsn)) return FALSE;
         etypeList[i] = etypeAsn;
     }
     AsnElt etypeSeqTotal1 = { 0 }, etypeSeqTotal2 = { 0 }, etypeSeqTotalContext = { 0 };
-    if (Make3(ASN_SEQUENCE, etypeList, req_body->etypes_count, &etypeSeqTotal1)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &etypeSeqTotal1, 1, &etypeSeqTotal2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 8, &etypeSeqTotal2, &etypeSeqTotalContext)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, etypeList, req_body->etypes_count, &etypeSeqTotal1)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &etypeSeqTotal1, 1, &etypeSeqTotal2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 8, &etypeSeqTotal2, &etypeSeqTotalContext)) return FALSE;
     allNodes[allNodesIndex++] = etypeSeqTotalContext;
 
     if (req_body->addresses_count > 0) {
         AsnElt* addrList = MemAlloc(sizeof(AsnElt) * req_body->addresses_count);
         for (unsigned int i = 0; i < req_body->addresses_count; i++) {
             AsnElt addrElt = { 0 };
-            if (AsnHostAddressEncode(&(req_body->addresses[i]), &addrElt)) return FALSE;
+            if (!AsnHostAddressEncode(&(req_body->addresses[i]), &addrElt)) return FALSE;
             addrList[i] = addrElt;
         }
         AsnElt addrSeqTotal1 = { 0 }, addrSeqTotal2 = { 0 }, addrSeqTotal2Context = { 0 };
-        if (Make3(ASN_SEQUENCE, addrList, req_body->addresses_count, &addrSeqTotal1)) return FALSE;
-        if (Make3(ASN_SEQUENCE, &addrSeqTotal1, 1, &addrSeqTotal2)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 9, &addrSeqTotal2, &addrSeqTotal2Context)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, addrList, req_body->addresses_count, &addrSeqTotal1)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, &addrSeqTotal1, 1, &addrSeqTotal2)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 9, &addrSeqTotal2, &addrSeqTotal2Context)) return FALSE;
         allNodes[allNodesIndex++] = addrSeqTotal2Context;
     }
 
     if (req_body->enc_authorization_data.cipher_size > 0) {
         AsnElt authEncASN = { 0 }, authEncSeq = { 0 }, authEncSeqContext = { 0 };
-        if (AsnEncryptedDataEncode(&(req_body->enc_authorization_data), &authEncASN)) return FALSE;
-        if (Make3(ASN_SEQUENCE, &authEncASN, 1, &authEncSeq)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 10, &authEncSeq, &authEncSeqContext)) return FALSE;
+        if (!AsnEncryptedDataEncode(&(req_body->enc_authorization_data), &authEncASN)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, &authEncASN, 1, &authEncSeq)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 10, &authEncSeq, &authEncSeqContext)) return FALSE;
         allNodes[allNodesIndex++] = authEncSeqContext;
     }
 
     if (req_body->additional_tickets_count > 0) {
         AsnElt ticketASN = { 0 }, ticketSeq = { 0 }, ticketSeq2 = { 0 }, ticketSeq2Context = { 0 };
-        if (AsnTicketEncode(&(req_body->additional_tickets[0]), &ticketASN)) return FALSE;
-        if (Make3(ASN_SEQUENCE, &ticketASN, 1, &ticketSeq)) return FALSE;
-        if (Make3(ASN_SEQUENCE, &ticketSeq, 1, &ticketSeq2)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 11, &ticketSeq2, &ticketSeq2Context)) return FALSE;
+        if (!AsnTicketEncode(&(req_body->additional_tickets[0]), &ticketASN)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, &ticketASN, 1, &ticketSeq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, &ticketSeq, 1, &ticketSeq2)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 11, &ticketSeq2, &ticketSeq2Context)) return FALSE;
         allNodes[allNodesIndex++] = ticketSeq2Context;
     }
 
-    if (Make3(ASN_SEQUENCE, allNodes, allNodesCount, RET)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, allNodes, allNodesCount, RET)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnChecksumEncode(Checksum* cksum, AsnElt* totalSeq2) {
     AsnElt cksumtypeSeqContext = { 0 };
-    if (PackIntegerLong(0, cksum->cksumtype, &cksumtypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, cksum->cksumtype, &cksumtypeSeqContext)) return FALSE;
 
     AsnElt checksumSeqContext = { 0 };
-    if (PackBlock(1, cksum->checksum, cksum->checksum_length, &checksumSeqContext)) return FALSE;
+    if (!PackBlock(1, cksum->checksum, cksum->checksum_length, &checksumSeqContext)) return FALSE;
 
     AsnElt seq[] = { cksumtypeSeqContext, checksumSeqContext };
     AsnElt totalSeq = { 0 };
-    if (Make3(ASN_SEQUENCE, seq, 2, &totalSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &totalSeq, 1, totalSeq2)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, seq, 2, &totalSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &totalSeq, 1, totalSeq2)) return FALSE;
     return TRUE;
 }
 
@@ -1650,74 +1650,74 @@ BOOL AsnAuthenticatorEncode(Authenticator* authenticator, AsnElt* finalContext) 
     AsnElt* allNodes = MemAlloc(sizeof(AsnElt) * allNodesCount);
 
     AsnElt pvnoSeqContext = { 0 };
-    if (PackIntegerLong(0, (long)authenticator->authenticator_vno, &pvnoSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, (long)authenticator->authenticator_vno, &pvnoSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = pvnoSeqContext;
 
     AsnElt prealmAsnSeqContext = { 0 };
-    if (PackStringExt(1, ASN_IA5String, ASN_GeneralString, authenticator->crealm, &prealmAsnSeqContext)) return FALSE;
+    if (!PackStringExt(1, ASN_IA5String, ASN_GeneralString, authenticator->crealm, &prealmAsnSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = prealmAsnSeqContext;
 
     AsnElt snameElt = { 0 }, snameEltContext = { 0 };
-    if (AsnPrincipalNameEncode(&(authenticator->cname), &snameElt)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 2, &snameElt, &snameEltContext)) return FALSE;
+    if (!AsnPrincipalNameEncode(&(authenticator->cname), &snameElt)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 2, &snameElt, &snameEltContext)) return FALSE;
     allNodes[allNodesIndex++] = snameEltContext;
 
     if (authenticator->cksum.checksum_length > 0) {
         AsnElt checksumAsn = { 0 }, checksumAsnContext = { 0 };
-        if (AsnChecksumEncode(&(authenticator->cksum), &checksumAsn)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 3, &checksumAsn, &checksumAsnContext)) return FALSE;
+        if (!AsnChecksumEncode(&(authenticator->cksum), &checksumAsn)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 3, &checksumAsn, &checksumAsnContext)) return FALSE;
         allNodes[allNodesIndex++] = checksumAsnContext;
     }
 
     AsnElt cusecSeqContext = { 0 };
-    if (PackIntegerLong(4, (long)authenticator->cusec, &cusecSeqContext)) return FALSE;
+    if (!PackIntegerLong(4, (long)authenticator->cusec, &cusecSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = cusecSeqContext;
 
     char datatime[18];
     MSVCRT$sprintf(datatime, "%04d%02d%02d%02d%02d%02dZ", authenticator->ctime.year, authenticator->ctime.month, authenticator->ctime.day, authenticator->ctime.hour, authenticator->ctime.minute, authenticator->ctime.second);
     AsnElt tillSeqContext = { 0 };
-    if (PackString(5, ASN_GeneralizedTime, datatime, &tillSeqContext)) return FALSE;
+    if (!PackString(5, ASN_GeneralizedTime, datatime, &tillSeqContext)) return FALSE;
     allNodes[allNodesIndex++] = tillSeqContext;
 
     if (authenticator->subkey.key_size) {
         AsnElt keyAsn = { 0 }, keyAsnContext = { 0 };
-        if (AsnEncryptionKeyEncode(&(authenticator->subkey), &keyAsn)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 6, &keyAsn, &keyAsnContext)) return FALSE;
+        if (!AsnEncryptionKeyEncode(&(authenticator->subkey), &keyAsn)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 6, &keyAsn, &keyAsnContext)) return FALSE;
         allNodes[allNodesIndex++] = keyAsnContext;
     }
 
     if (authenticator->seq_number) {
         AsnElt seq_numberSeqContext = { 0 };
-        if (PackIntegerLong(7, (long)authenticator->seq_number, &seq_numberSeqContext)) return FALSE;
+        if (!PackIntegerLong(7, (long)authenticator->seq_number, &seq_numberSeqContext)) return FALSE;
         allNodes[allNodesIndex++] = seq_numberSeqContext;
     }
 
     AsnElt seq = { 0 };
-    if (Make3(ASN_SEQUENCE, allNodes, allNodesCount, &seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, allNodes, allNodesCount, &seq)) return FALSE;
 
     AsnElt finalAsn = { 0 };
-    if (Make3(ASN_SEQUENCE, &seq, 1, &finalAsn)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, 2, &finalAsn, finalContext)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq, 1, &finalAsn)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, 2, &finalAsn, finalContext)) return FALSE;
 
     return TRUE;
 }
 
 BOOL AsnApReqEncode(AP_REQ* value, AsnElt* totalSeqContext) {
     AsnElt pvnoSeqContext = { 0 };
-    if (PackIntegerLong(0, (long)value->pvno, &pvnoSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, (long)value->pvno, &pvnoSeqContext)) return FALSE;
 
     AsnElt msg_typeSeqContext = { 0 };
-    if (PackIntegerLong(1, (long)value->msg_type, &msg_typeSeqContext)) return FALSE;
+    if (!PackIntegerLong(1, (long)value->msg_type, &msg_typeSeqContext)) return FALSE;
 
     unsigned char ap_optionsBytes[sizeof(UINT32)];
     FlasToBytes(value->ap_options, ap_optionsBytes);
     AsnElt ap_optionsSeqContext = { 0 };
-    if (PackBitString(2, ap_optionsBytes, sizeof(UINT32), &ap_optionsSeqContext)) return FALSE;
+    if (!PackBitString(2, ap_optionsBytes, sizeof(UINT32), &ap_optionsSeqContext)) return FALSE;
 
     AsnElt ticketASN = { 0 }, ticktSeq = { 0 }, ticktSeqContext = { 0 };
-    if (AsnTicketEncode(&(value->ticket), &ticketASN)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &ticketASN, 1, &ticktSeq)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 3, &ticktSeq, &ticktSeqContext)) return FALSE;
+    if (!AsnTicketEncode(&(value->ticket), &ticketASN)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &ticketASN, 1, &ticktSeq)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 3, &ticktSeq, &ticktSeqContext)) return FALSE;
 
     if (value->key.key_size == 0) {
         BeaconPrintf(CALLBACK_ERROR, "[X] A key for the authenticator is needed to build an AP-REQ\n");
@@ -1725,11 +1725,11 @@ BOOL AsnApReqEncode(AP_REQ* value, AsnElt* totalSeqContext) {
     }
 
     AsnElt authenticatorAsn = { 0 };
-    if (AsnAuthenticatorEncode(&(value->authenticator), &authenticatorAsn)) return FALSE;
+    if (!AsnAuthenticatorEncode(&(value->authenticator), &authenticatorAsn)) return FALSE;
 
     unsigned char* authenticatorBytes = NULL;
     int authenticatorBytesLength = 0;
-    if (AsnToBytesEncode(&authenticatorAsn, &authenticatorBytesLength, &authenticatorBytes)) return FALSE;
+    if (!AsnToBytesEncode(&authenticatorAsn, &authenticatorBytesLength, &authenticatorBytes)) return FALSE;
 
     unsigned char* encBytes = NULL;
     DWORD encSize = 0;
@@ -1741,81 +1741,81 @@ BOOL AsnApReqEncode(AP_REQ* value, AsnElt* totalSeqContext) {
     authenticatorEncryptedData.cipher_size = encSize;
 
     AsnElt authEncASN = { 0 }, authEncSeq = { 0 }, authEncSeqContext = { 0 };
-    if (AsnEncryptedDataEncode(&authenticatorEncryptedData, &authEncASN)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &authEncASN, 1, &authEncSeq)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 4, &authEncSeq, &authEncSeqContext)) return FALSE;
+    if (!AsnEncryptedDataEncode(&authenticatorEncryptedData, &authEncASN)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &authEncASN, 1, &authEncSeq)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 4, &authEncSeq, &authEncSeqContext)) return FALSE;
 
     AsnElt totalAsn[] = { pvnoSeqContext, msg_typeSeqContext, ap_optionsSeqContext, ticktSeqContext, authEncSeqContext };
     AsnElt seq = { 0 }, totalSeq = { 0 };
-    if (Make3(ASN_SEQUENCE, totalAsn, 5, &seq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &seq, 1, &totalSeq)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, 14, &totalSeq, totalSeqContext)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, totalAsn, 5, &seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq, 1, &totalSeq)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, 14, &totalSeq, totalSeqContext)) return FALSE;
 
     return TRUE;
 }
 
 BOOL AsnPaPacOptionsEncode(PA_PAC_OPTIONS* value, AsnElt* seq) {
     AsnElt kerberosFlagsAsn = { 0 }, kerberosFlagsAsnContext = { 0 }, parent = { 0 };
-    if (MakeBitString(value->kerberosFlags, 0, 4, &kerberosFlagsAsn)) return FALSE;
-    if (MakeImplicit(ASN_UNIVERSAL, 3, &kerberosFlagsAsn, &kerberosFlagsAsnContext)) return FALSE;
-    if (Make4(ASN_CONTEXT, 0, &kerberosFlagsAsnContext, 1, &parent)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &parent, 1, seq)) return FALSE;
+    if (!MakeBitString(value->kerberosFlags, 0, 4, &kerberosFlagsAsn)) return FALSE;
+    if (!MakeImplicit(ASN_UNIVERSAL, 3, &kerberosFlagsAsn, &kerberosFlagsAsnContext)) return FALSE;
+    if (!Make4(ASN_CONTEXT, 0, &kerberosFlagsAsnContext, 1, &parent)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &parent, 1, seq)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnPaDataEncode(PA_DATA padata, AsnElt* seq) {
     AsnElt nameTypeSeqContext = { 0 };
-    if (PackIntegerLong(1, (long)padata.type, &nameTypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(1, (long)padata.type, &nameTypeSeqContext)) return FALSE;
 
     if (padata.type == PADATA_PA_PAC_REQUEST) {
         AsnElt paDataElt = { 0 }, paDataEltContext = { 0 };
-        if (AsnKerbPaPacRequestEncode(padata.value, &paDataElt)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 2, &paDataElt, &paDataEltContext)) return FALSE;
+        if (!AsnKerbPaPacRequestEncode(padata.value, &paDataElt)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 2, &paDataElt, &paDataEltContext)) return FALSE;
 
         AsnElt seqSubs[] = { nameTypeSeqContext, paDataEltContext };
-        if (Make3(ASN_SEQUENCE, seqSubs, 2, seq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, seqSubs, 2, seq)) return FALSE;
     }
     else if (padata.type == PADATA_ENC_TIMESTAMP) {
         AsnElt encData = { 0 };
-        if (AsnEncryptedDataEncode(padata.value, &encData)) return FALSE;
+        if (!AsnEncryptedDataEncode(padata.value, &encData)) return FALSE;
 
         int encDataBytesSize = 0;
         unsigned char* encDataBytes = 0;
-        if (AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
+        if (!AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
 
         AsnElt blobSeqContext = { 0 };
-        if (PackBlock(2, encDataBytes, encDataBytesSize, &blobSeqContext)) return FALSE;
+        if (!PackBlock(2, encDataBytes, encDataBytesSize, &blobSeqContext)) return FALSE;
 
         AsnElt allSeq[] = { nameTypeSeqContext, blobSeqContext };
-        if (Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
     }
     else if (padata.type == PADATA_AP_REQ) {
         AsnElt encData = { 0 };
-        if (AsnApReqEncode(padata.value, &encData)) return FALSE;
+        if (!AsnApReqEncode(padata.value, &encData)) return FALSE;
 
         unsigned char* encDataBytes = NULL;
         int   encDataBytesSize = 0;
-        if (AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
+        if (!AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
 
         AsnElt paDataElt = { 0 };
-        if (PackBlock(2, encDataBytes, encDataBytesSize, &paDataElt)) return FALSE;
+        if (!PackBlock(2, encDataBytes, encDataBytesSize, &paDataElt)) return FALSE;
 
         AsnElt allSeq[] = { nameTypeSeqContext, paDataElt };
-        if (Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
     }
     else if (padata.type == PADATA_PA_PAC_OPTIONS) {
         AsnElt encData = { 0 };
-        if (AsnPaPacOptionsEncode(padata.value, &encData)) return FALSE;
+        if (!AsnPaPacOptionsEncode(padata.value, &encData)) return FALSE;
 
         unsigned char* encDataBytes = NULL;
         int   encDataBytesSize = 0;
-        if (AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
+        if (!AsnToBytesEncode(&encData, &encDataBytesSize, &encDataBytes)) return FALSE;
 
         AsnElt paDataElt = { 0 };
-        if (PackBlock(2, encDataBytes, encDataBytesSize, &paDataElt)) return FALSE;
+        if (!PackBlock(2, encDataBytes, encDataBytesSize, &paDataElt)) return FALSE;
 
         AsnElt allSeq[] = { nameTypeSeqContext, paDataElt };
-        if (Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
+        if (!Make3(ASN_SEQUENCE, allSeq, 2, seq)) return FALSE;
     }
     else {
         return FALSE;
@@ -1838,34 +1838,34 @@ BOOL AsnKrbCredInfoEncode(KrbCredInfo* cred_info, AsnElt* seq) {
     AsnElt* asnElements = MemAlloc(sizeof(AsnElt) * allNodesCount);
 
     AsnElt keyAsn = { 0 }, keyAsnContext = { 0 };
-    if (AsnEncryptionKeyEncode(&(cred_info->key), &keyAsn)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 0, &keyAsn, &keyAsnContext)) return FALSE;
+    if (!AsnEncryptionKeyEncode(&(cred_info->key), &keyAsn)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 0, &keyAsn, &keyAsnContext)) return FALSE;
     asnElements[allNodesIndex++] = keyAsnContext;
 
     if (cred_info->prealm) {
         AsnElt prealmAsnSeqContext = { 0 };
-        if (PackStringExt(1, ASN_IA5String, ASN_GeneralString, cred_info->prealm, &prealmAsnSeqContext)) return FALSE;
+        if (!PackStringExt(1, ASN_IA5String, ASN_GeneralString, cred_info->prealm, &prealmAsnSeqContext)) return FALSE;
         asnElements[allNodesIndex++] = prealmAsnSeqContext;
     }
 
     if (cred_info->pname.name_count) {
         AsnElt pnameAsn = { 0 }, pnameAsnContext = { 0 };
-        if (AsnPrincipalNameEncode(&(cred_info->pname), &pnameAsn)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 2, &pnameAsn, &pnameAsnContext)) return FALSE;
+        if (!AsnPrincipalNameEncode(&(cred_info->pname), &pnameAsn)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 2, &pnameAsn, &pnameAsnContext)) return FALSE;
         asnElements[allNodesIndex++] = pnameAsnContext;
     }
 
     unsigned char flagBytes[sizeof(UINT32)];
     FlasToBytes(cred_info->flags, flagBytes);
     AsnElt flagBytesSeqContext = { 0 };
-    if (PackBitString(3, flagBytes, sizeof(UINT32), &flagBytesSeqContext)) return FALSE;
+    if (!PackBitString(3, flagBytes, sizeof(UINT32), &flagBytesSeqContext)) return FALSE;
     asnElements[allNodesIndex++] = flagBytesSeqContext;
 
     if (cred_info->authtime.isSet) {
         char dt[18];
         MSVCRT$sprintf(dt, "%04d%02d%02d%02d%02d%02dZ", cred_info->authtime.year, cred_info->authtime.month, cred_info->authtime.day, cred_info->authtime.hour, cred_info->authtime.minute, cred_info->authtime.second);
         AsnElt ctx = { 0 };
-        if (PackString(4, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
+        if (!PackString(4, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
         asnElements[allNodesIndex++] = ctx;
     }
 
@@ -1873,7 +1873,7 @@ BOOL AsnKrbCredInfoEncode(KrbCredInfo* cred_info, AsnElt* seq) {
         char dt[18];
         MSVCRT$sprintf(dt, "%04d%02d%02d%02d%02d%02dZ", cred_info->starttime.year, cred_info->starttime.month, cred_info->starttime.day, cred_info->starttime.hour, cred_info->starttime.minute, cred_info->starttime.second);
         AsnElt ctx = { 0 };
-        if (PackString(5, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
+        if (!PackString(5, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
         asnElements[allNodesIndex++] = ctx;
     }
 
@@ -1881,7 +1881,7 @@ BOOL AsnKrbCredInfoEncode(KrbCredInfo* cred_info, AsnElt* seq) {
         char dt[18];
         MSVCRT$sprintf(dt, "%04d%02d%02d%02d%02d%02dZ", cred_info->endtime.year, cred_info->endtime.month, cred_info->endtime.day, cred_info->endtime.hour, cred_info->endtime.minute, cred_info->endtime.second);
         AsnElt ctx = { 0 };
-        if (PackString(6, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
+        if (!PackString(6, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
         asnElements[allNodesIndex++] = ctx;
     }
 
@@ -1889,90 +1889,90 @@ BOOL AsnKrbCredInfoEncode(KrbCredInfo* cred_info, AsnElt* seq) {
         char dt[18];
         MSVCRT$sprintf(dt, "%04d%02d%02d%02d%02d%02dZ", cred_info->renew_till.year, cred_info->renew_till.month, cred_info->renew_till.day, cred_info->renew_till.hour, cred_info->renew_till.minute, cred_info->renew_till.second);
         AsnElt ctx = { 0 };
-        if (PackString(7, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
+        if (!PackString(7, ASN_GeneralizedTime, dt, &ctx)) return FALSE;
         asnElements[allNodesIndex++] = ctx;
     }
 
     if (cred_info->srealm) {
         AsnElt srealmAsnSeqContext = { 0 };
-        if (PackStringExt(8, ASN_IA5String, ASN_GeneralString, cred_info->srealm, &srealmAsnSeqContext)) return FALSE;
+        if (!PackStringExt(8, ASN_IA5String, ASN_GeneralString, cred_info->srealm, &srealmAsnSeqContext)) return FALSE;
         asnElements[allNodesIndex++] = srealmAsnSeqContext;
     }
 
     if (cred_info->sname.name_count) {
         AsnElt pnameAsn = { 0 }, pnameAsnContext = { 0 };
-        if (AsnPrincipalNameEncode(&(cred_info->sname), &pnameAsn)) return FALSE;
-        if (MakeImplicit(ASN_CONTEXT, 9, &pnameAsn, &pnameAsnContext)) return FALSE;
+        if (!AsnPrincipalNameEncode(&(cred_info->sname), &pnameAsn)) return FALSE;
+        if (!MakeImplicit(ASN_CONTEXT, 9, &pnameAsn, &pnameAsnContext)) return FALSE;
         asnElements[allNodesIndex++] = pnameAsnContext;
     }
 
-    if (Make3(ASN_SEQUENCE, asnElements, allNodesCount, seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, asnElements, allNodesCount, seq)) return FALSE;
     return TRUE;
 }
 
 BOOL AsnEncKrbCredPartEncode(EncKrbCredPart* cred_part, AsnElt* totalSeq2Context) {
     AsnElt infoAsn = { 0 }, seq1 = { 0 }, seq2 = { 0 }, seq2Context = { 0 };
-    if (AsnKrbCredInfoEncode(&(cred_part->ticket_info[0]), &infoAsn)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &infoAsn, 1, &seq1)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &seq1, 1, &seq2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 0, &seq2, &seq2Context)) return FALSE;
+    if (!AsnKrbCredInfoEncode(&(cred_part->ticket_info[0]), &infoAsn)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &infoAsn, 1, &seq1)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq1, 1, &seq2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 0, &seq2, &seq2Context)) return FALSE;
 
     AsnElt totalSeq = { 0 }, totalSeq2 = { 0 };
-    if (Make3(ASN_SEQUENCE, &seq2Context, 1, &totalSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &totalSeq, 1, &totalSeq2)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, 29, &totalSeq2, totalSeq2Context)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq2Context, 1, &totalSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &totalSeq, 1, &totalSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, 29, &totalSeq2, totalSeq2Context)) return FALSE;
 
     return TRUE;
 }
 
 BOOL AsnKrbCredEncode(KRB_CRED* krb_cred, AsnElt* finalContext) {
     AsnElt pvnoSeqContext = { 0 };
-    if (PackIntegerLong(0, krb_cred->pvno, &pvnoSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, krb_cred->pvno, &pvnoSeqContext)) return FALSE;
 
     AsnElt msg_typeSeqContext = { 0 };
-    if (PackIntegerLong(1, krb_cred->msg_type, &msg_typeSeqContext)) return FALSE;
+    if (!PackIntegerLong(1, krb_cred->msg_type, &msg_typeSeqContext)) return FALSE;
 
     AsnElt ticketAsn = { 0 }, ticketSeq = { 0 }, ticketSeq2 = { 0 }, ticketSeq2Context = { 0 };
-    if (AsnTicketEncode(&(krb_cred->tickets[0]), &ticketAsn)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &ticketAsn, 1, &ticketSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &ticketSeq, 1, &ticketSeq2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 2, &ticketSeq2, &ticketSeq2Context)) return FALSE;
+    if (!AsnTicketEncode(&(krb_cred->tickets[0]), &ticketAsn)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &ticketAsn, 1, &ticketSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &ticketSeq, 1, &ticketSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 2, &ticketSeq2, &ticketSeq2Context)) return FALSE;
 
     AsnElt enc_partAsn = { 0 };
-    if (AsnEncKrbCredPartEncode(&(krb_cred->enc_part), &enc_partAsn)) return FALSE;
+    if (!AsnEncKrbCredPartEncode(&(krb_cred->enc_part), &enc_partAsn)) return FALSE;
     int blobBytesSize = 0;
     unsigned char* blobBytes = 0;
-    if (AsnToBytesEncode(&enc_partAsn, &blobBytesSize, &blobBytes)) return FALSE;
+    if (!AsnToBytesEncode(&enc_partAsn, &blobBytesSize, &blobBytes)) return FALSE;
 
     AsnElt blobSeqContext = { 0 };
-    if (PackBlock(2, blobBytes, blobBytesSize, &blobSeqContext)) return FALSE;
+    if (!PackBlock(2, blobBytes, blobBytesSize, &blobSeqContext)) return FALSE;
 
     AsnElt etypeSeqContext = { 0 };
-    if (PackIntegerLong(0, 0, &etypeSeqContext)) return FALSE;
+    if (!PackIntegerLong(0, 0, &etypeSeqContext)) return FALSE;
 
     AsnElt encSeq[] = { etypeSeqContext, blobSeqContext };
     AsnElt infoSeq = { 0 }, infoSeq2 = { 0 }, infoSeq2Context = { 0 };
-    if (Make3(ASN_SEQUENCE, encSeq, 2, &infoSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &infoSeq, 1, &infoSeq2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 3, &infoSeq2, &infoSeq2Context)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, encSeq, 2, &infoSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &infoSeq, 1, &infoSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 3, &infoSeq2, &infoSeq2Context)) return FALSE;
 
     AsnElt seqTotal[] = { pvnoSeqContext, msg_typeSeqContext, ticketSeq2Context, infoSeq2Context };
     AsnElt total = { 0 };
-    if (Make3(ASN_SEQUENCE, seqTotal, 4, &total)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, seqTotal, 4, &total)) return FALSE;
 
     AsnElt finalAsn = { 0 };
-    if (Make3(ASN_SEQUENCE, &total, 1, &finalAsn)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, 22, &finalAsn, finalContext)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &total, 1, &finalAsn)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, 22, &finalAsn, finalContext)) return FALSE;
 
     return TRUE;
 }
 
 BOOL ReqToAsnEncode(AS_REQ as_req, int APP_NUM, AsnElt* totalSeqApp) {
     AsnElt pvnoContext = { 0 };
-    if (PackIntegerLong(1, as_req.pvno, &pvnoContext)) return FALSE;
+    if (!PackIntegerLong(1, as_req.pvno, &pvnoContext)) return FALSE;
 
     AsnElt msg_type_ASNSeqContext = { 0 };
-    if (PackIntegerLong(2, as_req.msg_type, &msg_type_ASNSeqContext)) return FALSE;
+    if (!PackIntegerLong(2, as_req.msg_type, &msg_type_ASNSeqContext)) return FALSE;
 
     AsnElt* padatas = MemAlloc(sizeof(AsnElt) * as_req.pa_data_count);
     if (!padatas && as_req.pa_data_count) {
@@ -1981,27 +1981,27 @@ BOOL ReqToAsnEncode(AS_REQ as_req, int APP_NUM, AsnElt* totalSeqApp) {
     }
     for (unsigned int i = 0; i < as_req.pa_data_count; ++i) {
         AsnElt pd = { 0 };
-        if (AsnPaDataEncode(as_req.pa_data[i], &pd)) return FALSE;
+        if (!AsnPaDataEncode(as_req.pa_data[i], &pd)) return FALSE;
         padatas[i] = pd;
     }
 
     AsnElt padata_ASNSeq = { 0 }, padata_ASNSeq2 = { 0 }, padata_ASNSeqContext = { 0 };
-    if (Make3(ASN_SEQUENCE, padatas, as_req.pa_data_count, &padata_ASNSeq)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &padata_ASNSeq, 1, &padata_ASNSeq2)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 3, &padata_ASNSeq2, &padata_ASNSeqContext)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, padatas, as_req.pa_data_count, &padata_ASNSeq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &padata_ASNSeq, 1, &padata_ASNSeq2)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 3, &padata_ASNSeq2, &padata_ASNSeqContext)) return FALSE;
 
     AsnElt req_Body_ASN = { 0 }, req_Body_ASNSeq = { 0 }, req_Body_ASNSeqContext = { 0 };
-    if (AsnKDCReqBodyEncode(&(as_req.req_body), &req_Body_ASN)) return FALSE;
-    if (Make3(ASN_SEQUENCE, &req_Body_ASN, 1, &req_Body_ASNSeq)) return FALSE;
-    if (MakeImplicit(ASN_CONTEXT, 4, &req_Body_ASNSeq, &req_Body_ASNSeqContext)) return FALSE;
+    if (!AsnKDCReqBodyEncode(&(as_req.req_body), &req_Body_ASN)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &req_Body_ASN, 1, &req_Body_ASNSeq)) return FALSE;
+    if (!MakeImplicit(ASN_CONTEXT, 4, &req_Body_ASNSeq, &req_Body_ASNSeqContext)) return FALSE;
 
     AsnElt total[] = { pvnoContext, msg_type_ASNSeqContext, padata_ASNSeqContext, req_Body_ASNSeqContext };
     AsnElt seq = { 0 };
-    if (Make3(ASN_SEQUENCE, total, 4, &seq)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, total, 4, &seq)) return FALSE;
 
     AsnElt totalSeq = { 0 };
-    if (Make3(ASN_SEQUENCE, &seq, 1, &totalSeq)) return FALSE;
-    if (MakeImplicit(ASN_APPLICATION, APP_NUM, &totalSeq, totalSeqApp)) return FALSE;
+    if (!Make3(ASN_SEQUENCE, &seq, 1, &totalSeq)) return FALSE;
+    if (!MakeImplicit(ASN_APPLICATION, APP_NUM, &totalSeq, totalSeqApp)) return FALSE;
 
     return TRUE;
 }

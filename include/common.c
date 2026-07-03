@@ -310,6 +310,6 @@ VOID PrintTicket(PBYTE ticket, ULONG ticketSize) {
     }
     b64[j] = '\0';
 
-    BeaconPrintf(CALLBACK_OUTPUT, "%s\n", b64);
+    BeaconPrintf(CALLBACK_OUTPUT, "%s\n\n", b64);
     MemFree(b64);
 }

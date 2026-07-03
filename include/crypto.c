@@ -74,8 +74,17 @@ BOOL decrypt(BYTE* key, DWORD eType, DWORD keyUsage, BYTE* data, int dataSize, B
     }
 
     *result = MemAlloc(dataSize);
+    if (!*result) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to allocate memory for decryption");
+        pCSystem->Finish(&pContext);
+        return FALSE;
+    }
     *size = dataSize;
     status = pCSystem->Decrypt(pContext, data, dataSize, *result, size);
     pCSystem->Finish(&pContext);
+    if (!NT_SUCCESS(status)) {
+        BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decrypt data (0x%08x)", status);
+        return FALSE;
+    }
     return TRUE;
 }
