@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <tlhelp32.h>
 #include "beacon.h"
 #include "common.h"
 #include "common.c"

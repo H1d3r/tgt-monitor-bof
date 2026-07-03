@@ -109,4 +109,5 @@ This implementation of this Beacon Object File is based on the following project
 
 - https://github.com/Ghostpack/Rubeus
 - https://github.com/RalfHacker/Kerbeus-BOF
+  - ASN.1 encoding/decoding implementation
 - https://github.com/wavvs/nanorobeus

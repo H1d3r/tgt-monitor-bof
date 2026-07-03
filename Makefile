@@ -11,16 +11,16 @@ all: monitor renew
 monitor: dist/$(MONITOR).x64.o dist/$(MONITOR).x86.o
 renew:   dist/$(RENEW).x64.o   dist/$(RENEW).x86.o
 
-dist/$(MONITOR).x64.o: src/monitor.c src/common.c
+dist/$(MONITOR).x64.o: src/monitor.c include/common.c
 	$(CCX64) -c src/monitor.c -o $@ $(CFLAGS)
 
-dist/$(MONITOR).x86.o: src/monitor.c src/common.c
+dist/$(MONITOR).x86.o: src/monitor.c include/common.c
 	$(CCX86) -c src/monitor.c -o $@ $(CFLAGS)
 
-dist/$(RENEW).x64.o: src/renew.c src/common.c
+dist/$(RENEW).x64.o: src/renew.c include/common.c include/crypto.c include/asn.c
 	$(CCX64) -c src/renew.c -o $@ $(CFLAGS)
 
-dist/$(RENEW).x86.o: src/renew.c src/common.c
+dist/$(RENEW).x86.o: src/renew.c include/common.c include/crypto.c include/asn.c
 	$(CCX86) -c src/renew.c -o $@ $(CFLAGS)
 
 clean:

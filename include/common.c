@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <tlhelp32.h>
 #include "beacon.h"
 #include "common.h"
 
@@ -194,6 +193,7 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTI
             continue;
 
         for (ULONG j = 0; j < response->CountOfTickets; j++) {
+            // https://microsoft.github.io/windows-docs-rs/doc/windows/Win32/Security/Authentication/Identity/struct.KERB_TICKET_CACHE_INFO_EX.html
             KERB_TICKET_CACHE_INFO_EX* t = &response->Tickets[j];
 
             if (MSVCRT$wcsncmp(t->ServerName.Buffer, L"krbtgt/", 7) != 0)
@@ -203,7 +203,7 @@ NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTI
             entry->luid           = sessionList[i];
             entry->startTime      = t->StartTime;
             entry->endTime        = t->EndTime;
-            entry->renewTime      = t->RenewTime;
+            entry->renewUntil     = t->RenewTime;
             entry->ticketFlags    = t->TicketFlags;
             entry->encryptionType = t->EncryptionType;
             KERNEL32$WideCharToMultiByte(CP_ACP, 0, t->ServerName.Buffer, t->ServerName.Length / 2, entry->spn,          sizeof(entry->spn),          NULL, NULL);
@@ -275,7 +275,7 @@ VOID PrintTicketInformation(PTICKET_ENTRY entry, const char* label) {
         BeaconPrintf(CALLBACK_OUTPUT, "  ServerRealm    :  %s\n", entry->serverRealm);
     BeaconPrintf(CALLBACK_OUTPUT, "  StartTime      :  "); PrintTime(&entry->startTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
     BeaconPrintf(CALLBACK_OUTPUT, "  EndTime        :  "); PrintTime(&entry->endTime);   BeaconPrintf(CALLBACK_OUTPUT, "\n");
-    BeaconPrintf(CALLBACK_OUTPUT, "  RenewTill      :  "); PrintTime(&entry->renewTime); BeaconPrintf(CALLBACK_OUTPUT, "\n");
+    BeaconPrintf(CALLBACK_OUTPUT, "  RenewUntil     :  "); PrintTime(&entry->renewUntil); BeaconPrintf(CALLBACK_OUTPUT, "\n");
     BeaconPrintf(CALLBACK_OUTPUT, "  EncType        :  %s\n", GetEncType(entry->encryptionType));
 
     UINT flags = entry->ticketFlags;
