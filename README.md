@@ -38,10 +38,19 @@ The steps below are repeated in a loop until the BOF is cancelled via the stop e
 4. All active logon sessions are enumerated. For each session, the Kerberos ticket cache is queried and filtered for TGTs. If a `--user` argument was provided, only sessions matching that username are considered.
 5. Each TGT is checked against two conditions:
    - If the ticket is past its `RenewUntil` time, it is flagged as expired and re-authentication is required.
-   - If the ticket's remaining lifetime is within the user-defined threshold, a renewal request is submitted to the LSA. On success, the updated ticket metadata and base64-encoded kirbi output are printed, followed by a `BeaconWakeup()` call.
-
+   - If the ticket's remaining lifetime is within the user-defined threshold, the TGT is renewed and imported. On success, the updated ticket metadata and base64-encoded kirbi output are printed, followed by a `BeaconWakeup()` call.
+  
 ![Workflow TGT Renew](./assets/workflow-renew.png)
 
+The ticket renewal process involves the following steps: 
+
+1. Extract the ASN.1 encoded Kerberos TGT via ExtractTicket() using the LUID and SPN from the PTICKET_ENTRY structure.
+2. ASN.1-decode the ticket and retrieve the Kerberos credential.
+3. Create a TGS-REQ packet to request the ticket renewal using the expiring ticket for preauthentication.
+4. Send the TGS-REQ bytes to the domain controller on port 88.
+5. Retrieve, ASN.1-decode and parse the TGS-REP response.
+6. Build the renewed ticket, purge the old ticket from the cache, and import the renewed ticket using Pass-the-Ticket.
+7. Update startTime, endTime, renewUntil, ticketFlags, and encryptionType on the PTICKET_ENTRY structure, print the ticket information & base64.
 
 ## Usage
 

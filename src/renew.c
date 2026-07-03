@@ -20,13 +20,6 @@ BOOL Expires(PTICKET_ENTRY ticket, int minutes) {
     return (ticket->endTime.QuadPart - now.QuadPart) <= marginTicks;
 }
 
-LARGE_INTEGER DateTimeToLargeInteger(DateTime dt) {
-    SYSTEMTIME st = { dt.year, dt.month, 0, dt.day, dt.hour, dt.minute, dt.second, 0 };
-    FILETIME ft;
-    KERNEL32$SystemTimeToFileTime(&st, &ft);
-    return (LARGE_INTEGER){ .LowPart = ft.dwLowDateTime, .HighPart = ft.dwHighDateTime };
-}
-
 VOID GetDomainController(char** dc){
     if (!dc || *dc != NULL)
         return; 
@@ -41,6 +34,13 @@ VOID GetDomainController(char** dc){
     if (pDomainControllerInfo != NULL){
         NETAPI32$NetApiBufferFree(pDomainControllerInfo); 
     }
+}
+
+LARGE_INTEGER DateTimeToLargeInteger(DateTime dt) {
+    SYSTEMTIME st = { dt.year, dt.month, 0, dt.day, dt.hour, dt.minute, dt.second, 0 };
+    FILETIME ft;
+    KERNEL32$SystemTimeToFileTime(&st, &ft);
+    return (LARGE_INTEGER){ .LowPart = ft.dwLowDateTime, .HighPart = ft.dwHighDateTime };
 }
 
 UINT Htonl(UINT hostlong) {
@@ -346,8 +346,7 @@ VOID RenewTicket(HANDLE hLsa, ULONG authPackage, PTICKET_ENTRY ticket, char* dc)
     AsnElt asnKrbCred = { 0 };
     KRB_CRED kirbi = { 0 };
 
-    if (!BytesToAsnDecode3(encodedTicket, ticketSize, FALSE, &asnKrbCred) ||
-        !AsnGetKrbCred(&(asnKrbCred.sub[0]), &kirbi)) {
+    if (!BytesToAsnDecode3(encodedTicket, ticketSize, FALSE, &asnKrbCred) || !AsnGetKrbCred(&(asnKrbCred.sub[0]), &kirbi)) {
         BeaconPrintf(CALLBACK_ERROR, "[-] Failed to decode ticket.\n");
         return;
     }
