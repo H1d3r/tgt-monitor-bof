@@ -116,14 +116,15 @@ DECLSPEC_IMPORT int    __stdcall WS2_32$closesocket(SOCKET);
 #endif
 
 // MSVCRT
-DECLSPEC_IMPORT int      WINAPI MSVCRT$strcmp(const char*, const char*);
-DECLSPEC_IMPORT int      WINAPI MSVCRT$wcsncmp(const WCHAR*, const WCHAR*, size_t);
-DECLSPEC_IMPORT size_t   WINAPI MSVCRT$wcslen(const WCHAR*);
-DECLSPEC_IMPORT void*    WINAPI MSVCRT$memcpy(void*, const void*, size_t);
-DECLSPEC_IMPORT int      WINAPI MSVCRT$_stricmp(const char*, const char*);
-DECLSPEC_IMPORT int      WINAPI MSVCRT$_snprintf(char*, size_t, const char*, ...);
-DECLSPEC_IMPORT int      __cdecl MSVCRT$sprintf(char*, const char*, ...);
-DECLSPEC_IMPORT size_t   WINAPI MSVCRT$strlen(const char*);
+DECLSPEC_IMPORT int           WINAPI MSVCRT$strcmp(const char*, const char*);
+DECLSPEC_IMPORT int           WINAPI MSVCRT$wcsncmp(const WCHAR*, const WCHAR*, size_t);
+DECLSPEC_IMPORT size_t        WINAPI MSVCRT$wcslen(const WCHAR*);
+DECLSPEC_IMPORT void*         WINAPI MSVCRT$memcpy(void*, const void*, size_t);
+DECLSPEC_IMPORT int           WINAPI MSVCRT$_stricmp(const char*, const char*);
+DECLSPEC_IMPORT int           WINAPI MSVCRT$_snprintf(char*, size_t, const char*, ...);
+DECLSPEC_IMPORT int           __cdecl MSVCRT$sprintf(char*, const char*, ...);
+DECLSPEC_IMPORT size_t        WINAPI MSVCRT$strlen(const char*);
+DECLSPEC_IMPORT unsigned long WINAPI MSVCRT$strtoul(const char*, char**, int);
 
 // common.c
 BOOL     IsSystem(VOID);
@@ -131,7 +132,7 @@ HANDLE   StealSystemToken(VOID);
 NTSTATUS GetLsaHandle(HANDLE* hLsa);
 BOOL     IsTargetUser(const char* targetUsers, const char* username);
 NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize);
-NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache);
+NTSTATUS EnumerateTGTs(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache);
 VOID     PrintTime(LARGE_INTEGER* li);
 VOID     PrintTicketInformation(PTICKET_ENTRY entry, const char* label);
 VOID     PrintTicket(PBYTE ticket, ULONG ticketSize);

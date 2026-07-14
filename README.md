@@ -89,18 +89,24 @@ The `tgt-renew` BOF automatically renews tickets that expire soon until they can
 | Name | Type | Description | 
 | --- | --- | --- |
 | `interval` | `int` | Timeout between checks in seconds. | 
-| `targetUsers` | `string` | Case-insensitive comma-separated list of target usernames. When this field is set, only TGTs for the specified users are retrieved. Otherwise, TGTs are collected for all users. Note that computer accounts need to end with `$`. |
 | `threshold` | `int` | Renewal threshold in minutes. The ticket is renewed when the time to EndTime is lower than this threshold. | 
+| `targetUsers` | `string` | Case-insensitive comma-separated list of target usernames. When this field is set, only TGTs for the specified users are renewed. Otherwise, TGTs are renewed for all users. Note that computer accounts need to end with `$`. |
+| `targetLuids` | `string` | Case-insensitive comma-separated list of target LUIDs. When this field is set, only TGTs for the specified LUIDs are renewed. |
 
 ```
-Usage: tgt-renew [--interval seconds] [--threshold minutes] [--user user]
-Example: tgt-renew --interval 300 --threshold 30
+Usage: tgt-renew [--interval seconds] [--threshold minutes] [--user user] [--luid luid]
+Example: tgt-renew --luid 0x3e4 --interval 300 --threshold 30
 
 Optional arguments:
   --interval seconds        INT        Polling interval in seconds (default: 60).
   --threshold minutes       INT        Ticket renewal threshold in minutes (default: 15).
   --user user               STRING     Comma-separated list of target usernames (default: all users).
+  --luid luid               STRING     Comma-separated list of target LUIDs (default: all LUIDs).
 ```
+
+The `--user` and `--luid` flags are mutually exclusive.
+
+![TGT Renew](./assets/image-3.png)
 
 ## Installation
 

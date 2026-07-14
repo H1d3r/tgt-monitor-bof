@@ -85,7 +85,7 @@ VOID go(char* args, int argc) {
     TICKET_CACHE curr = { 0 };
 
     do {
-        if (NT_SUCCESS(EnumerateTickets(hLsa, authPackage, targetUsers, &curr))) {
+        if (NT_SUCCESS(EnumerateTGTs(hLsa, authPackage, targetUsers, &curr))) {
             RefreshCache(hLsa, authPackage, &prev, &curr);
             if (prev.tickets)
                 MemFree(prev.tickets);

