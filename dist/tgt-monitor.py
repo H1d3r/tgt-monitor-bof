@@ -28,9 +28,9 @@ cmd_tgtMonitor = (
             ))
 ).registerToGroup("kerberos abuse")
 
-cmd_tgtRenew =(
-        conquest.createCommand(name="tgt-renew", description="Automatically renew Kerberos TGTs that are about to expire (async).", example="tgt-renew --luid 0x3e4 --interval 300 --threshold 30",
-                               message="Tasked agent to automatically renew Kerberos TGTs.", mitre=["T1558"])
+cmd_tgtRenew = (
+    conquest.createCommand(name="tgt-renew", description="Automatically renew Kerberos TGTs that are about to expire (async).", example="tgt-renew --luid 0x3e4 --interval 300 --threshold 30",
+                           message="Tasked agent to automatically renew Kerberos TGTs.", mitre=["T1558"])
             .addFlagInt("--interval", "seconds", "Polling interval in seconds (default: 60).", False, 60)
             .addFlagInt("--threshold", "minutes", "Ticket renewal threshold in minutes (default: 15).", False, 15)
             .addFlagString("--user", "user", "Comma-separated list of target usernames (default: all users).")
