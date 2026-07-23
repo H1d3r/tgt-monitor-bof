@@ -510,7 +510,7 @@ VOID go(char* args, int argc) {
                 PTICKET_ENTRY ticket = &curr.tickets[i];
 
                 // Filter for target LUID 
-                if (!IsTargetLuid(targetLuids, ticket->luid))
+                if (targetLuids && targetLuids[0] != '\0' && !IsTargetLuid(targetLuids, ticket->luid))
                     continue; 
 
                 // Check if TGT can be renewed
@@ -521,8 +521,12 @@ VOID go(char* args, int argc) {
                 if (Expires(ticket, threshold)) {
                     LARGE_INTEGER now = { 0 };
                     NTDLL$NtQuerySystemTime(&now);
-                    LONGLONG remaining = (ticket->endTime.QuadPart - now.QuadPart) / 600000000LL;
-                    BeaconPrintf(CALLBACK_OUTPUT, "[*] Remaining ticket lifetime below threshold (%lld/%dmin).", remaining, threshold);
+
+                    // Manual calculation to avoid ___divdi3 import which crashes agent on x86
+                    LONGLONG diff = ticket->endTime.QuadPart - now.QuadPart;
+                    int remaining = 0; while (diff >= 600000000LL) { diff -= 600000000LL; remaining++; }
+                    BeaconPrintf(CALLBACK_OUTPUT, "[*] Remaining ticket lifetime below threshold (%d < %dmin).", remaining, threshold);
+                
                     RenewTicket(hLsa, authPackage, ticket, dc);
                 }
             }
